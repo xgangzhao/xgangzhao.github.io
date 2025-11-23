@@ -27,7 +27,7 @@
 <meta property="og:description" content="依然来自公众号腾讯技术工程。用GDB来分析对象的内存布局，在此简单记录一些重要结论   C++中，一个对象的成员变量的内存布局是连续的（有字节对齐），会按照声明的顺序存储 所有成员方法，包括静态方法，都放在进程的.text段，不会占用对象实例的内存空间 尽管编译期间不能访问私有成员变量&#x2F;方法，但运行期间仍然可以通过地址偏移来访问 已经初始化（不为0）的全局变量或者静态变量，放在进程的.">
 <meta property="og:locale" content="en_US">
 <meta property="article:published_time" content="2025-11-23T11:56:27.000Z">
-<meta property="article:modified_time" content="2025-11-23T12:33:33.383Z">
+<meta property="article:modified_time" content="2025-11-23T12:36:59.628Z">
 <meta property="article:author" content="Xigang Zhao">
 <meta property="article:tag" content="C++">
 <meta name="twitter:card" content="summary">
@@ -234,7 +234,7 @@
       <span class="post-meta-item-text">Posted on</span>
       
 
-      <time title="Created: 2025-11-23 19:56:27 / Modified: 20:33:33" itemprop="dateCreated datePublished" datetime="2025-11-23T19:56:27+08:00">2025-11-23</time>
+      <time title="Created: 2025-11-23 19:56:27 / Modified: 20:36:59" itemprop="dateCreated datePublished" datetime="2025-11-23T19:56:27+08:00">2025-11-23</time>
     </span>
 
   
@@ -257,6 +257,7 @@
 <li>未初始化的全局变量或者静态变量，放在进程的.bss段</li>
 <li>有继承关系，基类和子类的布局连在一起</li>
 <li>有虚函数的继承，内存布局中会多出一个虚表指针</li>
+<li>虚函数表，所有对象实例共享，即每个多态类一份，编译器会在编译时创建（不同编译器可能会有不同）</li>
 </ol>
 
     </div>
