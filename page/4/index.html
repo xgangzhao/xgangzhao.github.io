@@ -166,13 +166,13 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
         <a href="/archives/">
-          <span class="site-state-item-count">6</span>
+          <span class="site-state-item-count">8</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-tags">
           <a href="/tags/">
-        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-count">6</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -198,7 +198,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/11/22/%E7%A2%8E%E7%89%87/">
+    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/11/26/uboot%E7%A7%BB%E6%A4%8D-%E5%9F%BA%E4%BA%8E%E6%AD%A3%E7%82%B9%E5%8E%9F%E5%AD%90imx6ull%E5%BC%80%E5%8F%91%E6%9D%BF/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -216,7 +216,7 @@
     </span>
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
-          <a href="/2025/11/22/%E7%A2%8E%E7%89%87/" class="post-title-link" itemprop="url">碎片</a>
+          <a href="/2025/11/26/uboot%E7%A7%BB%E6%A4%8D-%E5%9F%BA%E4%BA%8E%E6%AD%A3%E7%82%B9%E5%8E%9F%E5%AD%90imx6ull%E5%BC%80%E5%8F%91%E6%9D%BF/" class="post-title-link" itemprop="url">uboot移植--基于正点原子imx6ull开发板</a>
         </h2>
 
         <div class="post-meta-container">
@@ -228,7 +228,7 @@
       <span class="post-meta-item-text">Posted on</span>
       
 
-      <time title="Created: 2025-11-22 23:21:19 / Modified: 23:23:52" itemprop="dateCreated datePublished" datetime="2025-11-22T23:21:19+08:00">2025-11-22</time>
+      <time title="Created: 2025-11-26 01:07:45 / Modified: 19:46:57" itemprop="dateCreated datePublished" datetime="2025-11-26T01:07:45+08:00">2025-11-26</time>
     </span>
 
   
@@ -241,8 +241,13 @@
     
     
     <div class="post-body" itemprop="articleBody">
-          <blockquote>
-<p>有太多想做的事，热情满溢，却总被生活的现实挡在门外。必须先工作、先生存、先解决眼前的琐碎。于是那些理想、那些冲动，被暂时搁置。可每当夜深人静，我又会问自己：这些努力的意义究竟是什么？为何我会如此渴望去做那些事情？答案模糊又遥远，却在心底生出一种安静的重量。或许，生活本身就是一场权衡——在必须与想要之间寻找平衡，在日常与理想之间保留一丝不被消磨的渴望</p>
+          <h2 id="uboot版本"><a href="#uboot版本" class="headerlink" title="uboot版本"></a>uboot版本</h2><p>选择lf_v2024.04_6.6.52_2.2.x</p>
+<h2 id="参考nxp的imu6ullevk开发板，进行移植"><a href="#参考nxp的imu6ullevk开发板，进行移植" class="headerlink" title="参考nxp的imu6ullevk开发板，进行移植"></a>参考nxp的imu6ullevk开发板，进行移植</h2><h3 id="defconfig"><a href="#defconfig" class="headerlink" title="defconfig"></a>defconfig</h3><p>在uboot-imx&#x2F;configs目录下，copy mx6ull_14x14_evk_emmc_defconfig 到 mx6ull_14x14_zxg_emmc_defconfig<br>修改如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">CONFIG_ARM=y</span><br><span class="line">CONFIG_ARCH_MX6=y</span><br><span class="line">CONFIG_SYS_MALLOC_LEN=<span class="number">0x1000000</span></span><br><span class="line">CONFIG_NR_DRAM_BANKS=<span class="number">1</span></span><br><span class="line">CONFIG_SYS_MEMTEST_START=<span class="number">0x80000000</span></span><br><span class="line">CONFIG_SYS_MEMTEST_END=<span class="number">0x88000000</span></span><br><span class="line">CONFIG_ENV_SIZE=<span class="number">0x2000</span></span><br><span class="line">CONFIG_ENV_OFFSET=<span class="number">0xE0000</span></span><br><span class="line">CONFIG_MX6ULL=y</span><br><span class="line">CONFIG_TARGET_MX6ULL_14X14_ZXG_EMMC=y</span><br><span class="line"># CONFIG_LDO_BYPASS_CHECK is not <span class="built_in">set</span></span><br><span class="line">CONFIG_SYS_I2C_MXC_I2C1=y</span><br><span class="line">CONFIG_SYS_I2C_MXC_I2C2=y</span><br><span class="line">CONFIG_DM_GPIO=y</span><br><span class="line">CONFIG_DEFAULT_DEVICE_TREE=<span class="string">&quot;imx6ull-14x14-zxg-emmc&quot;</span></span><br><span class="line">CONFIG_SUPPORT_RAW_INITRD=y</span><br><span class="line">CONFIG_USE_BOOTCOMMAND=y</span><br></pre></td></tr></table></figure>
+
+<h3 id="板级文件修改"><a href="#板级文件修改" class="headerlink" title="板级文件修改"></a>板级文件修改</h3><p>copy board&#x2F;freescale&#x2F;mx6ullevk 到 board&#x2F;freescale&#x2F;mx6ull_zxg_emmc<br>修改makefile，使得mx6ull_zxg_emmc.c文件参与编译<br>修正该目录下所有路径名<br>.c文件中的checkboard函数 </p>
+<blockquote>
+<p>未完待续！</p>
 </blockquote>
 
       
@@ -263,7 +268,7 @@
 
 
   <nav class="pagination">
-    <a class="extend prev" rel="prev" title="Previous page" aria-label="Previous page" href="/page/3/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><a class="page-number" href="/page/6/">6</a><a class="extend next" rel="next" title="Next page" aria-label="Next page" href="/page/5/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" title="Previous page" aria-label="Previous page" href="/page/3/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/8/">8</a><a class="extend next" rel="next" title="Next page" aria-label="Next page" href="/page/5/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 </div>

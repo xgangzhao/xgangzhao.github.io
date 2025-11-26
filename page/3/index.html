@@ -166,13 +166,13 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
         <a href="/archives/">
-          <span class="site-state-item-count">6</span>
+          <span class="site-state-item-count">8</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-tags">
           <a href="/tags/">
-        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-count">6</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -198,7 +198,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/11/23/C-%E5%AF%B9%E8%B1%A1%E7%9A%84%E5%86%85%E5%AD%98%E5%B8%83%E5%B1%80/">
+    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/11/26/%E5%8A%A8%E6%89%8B%E5%AE%9E%E7%8E%B0share-pointer/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -216,7 +216,7 @@
     </span>
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
-          <a href="/2025/11/23/C-%E5%AF%B9%E8%B1%A1%E7%9A%84%E5%86%85%E5%AD%98%E5%B8%83%E5%B1%80/" class="post-title-link" itemprop="url">C++对象的内存布局</a>
+          <a href="/2025/11/26/%E5%8A%A8%E6%89%8B%E5%AE%9E%E7%8E%B0share-pointer/" class="post-title-link" itemprop="url">动手实现share pointer</a>
         </h2>
 
         <div class="post-meta-container">
@@ -228,7 +228,7 @@
       <span class="post-meta-item-text">Posted on</span>
       
 
-      <time title="Created: 2025-11-23 19:56:27 / Modified: 20:36:59" itemprop="dateCreated datePublished" datetime="2025-11-23T19:56:27+08:00">2025-11-23</time>
+      <time title="Created: 2025-11-26 19:51:00 / Modified: 19:56:13" itemprop="dateCreated datePublished" datetime="2025-11-26T19:51:00+08:00">2025-11-26</time>
     </span>
 
   
@@ -242,18 +242,12 @@
     
     <div class="post-body" itemprop="articleBody">
           <blockquote>
-<p>依然来自公众号腾讯技术工程。用GDB来分析对象的内存布局，在此简单记录一些重要结论</p>
+<p>share pointer的关键在于动态构造一个变量作为“引用记数”，每一个share pointer类持有其指针. 其次就是重载解引用操作符和箭头操作符</p>
 </blockquote>
-<ol>
-<li>C++中，一个对象的成员变量的内存布局是连续的（有字节对齐），会按照声明的顺序存储</li>
-<li>所有成员方法，包括静态方法，都放在进程的.text段，不会占用对象实例的内存空间</li>
-<li>尽管编译期间不能访问私有成员变量&#x2F;方法，但运行期间仍然可以通过地址偏移来访问</li>
-<li>已经初始化（不为0）的全局变量或者静态变量，放在进程的.data段</li>
-<li>未初始化的全局变量或者静态变量，放在进程的.bss段</li>
-<li>有继承关系，基类和子类的布局连在一起</li>
-<li>有虚函数的继承，内存布局中会多出一个虚表指针</li>
-<li>虚函数表，所有对象实例共享，即每个多态类一份，编译器会在编译时创建（不同编译器可能会有不同）</li>
-</ol>
+<p>代码如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"></span><br><span class="line">template &lt;typename T&gt;</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MySharedPtr</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">public:</span><br><span class="line">    explicit <span class="title function_">MySharedPtr</span><span class="params">(T* ptr = nullptr)</span> : <span class="title function_">raw_ptr_</span><span class="params">(ptr)</span>, <span class="title function_">count_</span><span class="params">(ptr ? new <span class="type">size_t</span>(<span class="number">1</span>) : nullptr)</span> &#123;</span><br><span class="line">        <span class="comment">// more </span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    MySharedPtr(<span class="type">const</span> MySharedPtr&amp; other) : raw_ptr_(other.raw_ptr_), count_(other.count_) &#123;</span><br><span class="line">        <span class="keyword">if</span> (count_) &#123;</span><br><span class="line">            ++(*count_);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    MySharedPtr&amp; operator=(<span class="type">const</span> MySharedPtr&amp; other) &#123;</span><br><span class="line">        <span class="keyword">if</span> (this != &amp;other) &#123;</span><br><span class="line">            release();</span><br><span class="line">            raw_ptr_ = other.raw_ptr_;</span><br><span class="line">            count_ = other.count_;</span><br><span class="line">            <span class="keyword">if</span> (count_) &#123;</span><br><span class="line">                ++(*count_);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> *this;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ~MySharedPtr() &#123;</span><br><span class="line">        release();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    T&amp; operator*() <span class="type">const</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> *raw_ptr_;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    T* operator-&gt;() <span class="type">const</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> raw_ptr_;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    T* <span class="title function_">get</span><span class="params">()</span> <span class="type">const</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> raw_ptr_;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="type">size_t</span> <span class="title function_">useCount</span><span class="params">()</span> <span class="type">const</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> count_ ? *count_ : <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">private:</span><br><span class="line">    T* raw_ptr_;</span><br><span class="line">    <span class="type">size_t</span>* count_;</span><br><span class="line"></span><br><span class="line">    <span class="type">void</span> <span class="title function_">release</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (count_ &amp;&amp; --(*count_) == <span class="number">0</span>) &#123;</span><br><span class="line">            delete raw_ptr_;</span><br><span class="line">            delete count_;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyClass</span> &#123;</span></span><br><span class="line">public:</span><br><span class="line">    MyClass() &#123; <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;MyClass is constructed!\n&quot;</span>; &#125;</span><br><span class="line">    ~MyClass() &#123; <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;MyClass is deconstructed!\n&quot;</span>; &#125;</span><br><span class="line">    <span class="type">void</span> <span class="title function_">do_something</span><span class="params">()</span> &#123; <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;MyClass::do_something() is calling\n&quot;</span>; &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">()</span> &#123;</span><br><span class="line">    &#123;</span><br><span class="line">        MySharedPtr&lt;MyClass&gt; <span class="title function_">ptr1</span><span class="params">(new MyClass())</span>;</span><br><span class="line">        &#123;</span><br><span class="line">            MySharedPtr&lt;MyClass&gt; ptr2 = ptr1;</span><br><span class="line">            ptr1-&gt;do_something();</span><br><span class="line">            ptr2-&gt;do_something();</span><br><span class="line">            <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;count is &quot;</span> &lt;&lt; ptr1.useCount() &lt;&lt; <span class="built_in">std</span>::<span class="built_in">endl</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;count is &quot;</span> &lt;&lt; ptr1.useCount() &lt;&lt; <span class="built_in">std</span>::<span class="built_in">endl</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
 
       
     </div>
@@ -273,7 +267,7 @@
 
 
   <nav class="pagination">
-    <a class="extend prev" rel="prev" title="Previous page" aria-label="Previous page" href="/page/2/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><a class="extend next" rel="next" title="Next page" aria-label="Next page" href="/page/4/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" title="Previous page" aria-label="Previous page" href="/page/2/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><span class="space">&hellip;</span><a class="page-number" href="/page/8/">8</a><a class="extend next" rel="next" title="Next page" aria-label="Next page" href="/page/4/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 </div>
