@@ -19,28 +19,29 @@
 
 <script class="next-config" data-name="main" type="application/json">{"hostname":"xgangzhao.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.26.0","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}},"activeClass":"gitalk"},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
 
-    <meta name="description" content="准备环境 安装 Node.js（建议 LTS 版本）https:&#x2F;&#x2F;nodejs.org 安装 Git https:&#x2F;&#x2F;git-scm.com  创建github repo 新建仓库，命名为username.github.io, (username必须是你的github用户名) 选择public （不需要初始化README）  安装Hexo123456789# 全局安装 Hexonpm insta">
+    <meta name="description" content="中断 (Interrupt) 是处理器接收到的一个信号，指示需要立即暂停当前执行的任务，转而去处理一个特定事件。在 Linux 中，它是实现 I&#x2F;O、计时器和进程调度的基础。 核心概念与分类中断类型 (Type) 硬件中断 (Hardware Interrupts): 由外部设备（如键盘、网卡、磁盘）通过中断控制器（如 APIC）发出的信号。它们是异步的。  软件中断 (Software">
 <meta property="og:type" content="article">
-<meta property="og:title" content="用Hexo &amp; github pages搭建一个完全免费的个人博客">
-<meta property="og:url" content="https://xgangzhao.github.io/2025/08/15/%E7%94%A8Hexo-github-pages%E6%90%AD%E5%BB%BA%E4%B8%80%E4%B8%AA%E5%AE%8C%E5%85%A8%E5%85%8D%E8%B4%B9%E7%9A%84%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2/index.html">
+<meta property="og:title" content="Linux 中断处理机制梳理">
+<meta property="og:url" content="https://xgangzhao.github.io/2025/11/30/Linux-%E4%B8%AD%E6%96%AD%E5%A4%84%E7%90%86%E6%9C%BA%E5%88%B6%E6%A2%B3%E7%90%86/index.html">
 <meta property="og:site_name" content="星河拾遗">
-<meta property="og:description" content="准备环境 安装 Node.js（建议 LTS 版本）https:&#x2F;&#x2F;nodejs.org 安装 Git https:&#x2F;&#x2F;git-scm.com  创建github repo 新建仓库，命名为username.github.io, (username必须是你的github用户名) 选择public （不需要初始化README）  安装Hexo123456789# 全局安装 Hexonpm insta">
+<meta property="og:description" content="中断 (Interrupt) 是处理器接收到的一个信号，指示需要立即暂停当前执行的任务，转而去处理一个特定事件。在 Linux 中，它是实现 I&#x2F;O、计时器和进程调度的基础。 核心概念与分类中断类型 (Type) 硬件中断 (Hardware Interrupts): 由外部设备（如键盘、网卡、磁盘）通过中断控制器（如 APIC）发出的信号。它们是异步的。  软件中断 (Software">
 <meta property="og:locale" content="en_US">
-<meta property="article:published_time" content="2025-08-14T16:17:51.000Z">
-<meta property="article:modified_time" content="2025-11-22T14:06:02.121Z">
+<meta property="article:published_time" content="2025-11-30T06:41:31.000Z">
+<meta property="article:modified_time" content="2025-11-30T06:59:11.036Z">
 <meta property="article:author" content="Xigang Zhao">
-<meta property="article:tag" content="Hexo">
-<meta property="article:tag" content="github">
+<meta property="article:tag" content="Linux">
+<meta property="article:tag" content="Driver">
+<meta property="article:tag" content="Interrupt">
 <meta name="twitter:card" content="summary">
 
 
-<link rel="canonical" href="https://xgangzhao.github.io/2025/08/15/%E7%94%A8Hexo-github-pages%E6%90%AD%E5%BB%BA%E4%B8%80%E4%B8%AA%E5%AE%8C%E5%85%A8%E5%85%8D%E8%B4%B9%E7%9A%84%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2/">
+<link rel="canonical" href="https://xgangzhao.github.io/2025/11/30/Linux-%E4%B8%AD%E6%96%AD%E5%A4%84%E7%90%86%E6%9C%BA%E5%88%B6%E6%A2%B3%E7%90%86/">
 
 
-<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"en","comments":true,"permalink":"https://xgangzhao.github.io/2025/08/15/%E7%94%A8Hexo-github-pages%E6%90%AD%E5%BB%BA%E4%B8%80%E4%B8%AA%E5%AE%8C%E5%85%A8%E5%85%8D%E8%B4%B9%E7%9A%84%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2/","path":"2025/08/15/用Hexo-github-pages搭建一个完全免费的个人博客/","title":"用Hexo & github pages搭建一个完全免费的个人博客"}</script>
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"en","comments":true,"permalink":"https://xgangzhao.github.io/2025/11/30/Linux-%E4%B8%AD%E6%96%AD%E5%A4%84%E7%90%86%E6%9C%BA%E5%88%B6%E6%A2%B3%E7%90%86/","path":"2025/11/30/Linux-中断处理机制梳理/","title":"Linux 中断处理机制梳理"}</script>
 
 <script class="next-config" data-name="calendar" type="application/json">""</script>
-<title>用Hexo & github pages搭建一个完全免费的个人博客 | 星河拾遗</title>
+<title>Linux 中断处理机制梳理 | 星河拾遗</title>
   
 
 
@@ -158,7 +159,7 @@
       <div class="sidebar-panel-container">
         <!--noindex-->
         <div class="post-toc-wrap sidebar-panel">
-            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%87%86%E5%A4%87%E7%8E%AF%E5%A2%83"><span class="nav-number">1.</span> <span class="nav-text">准备环境</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%9B%E5%BB%BAgithub-repo"><span class="nav-number">2.</span> <span class="nav-text">创建github repo</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%89%E8%A3%85Hexo"><span class="nav-number">3.</span> <span class="nav-text">安装Hexo</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%AC%E5%9C%B0%E9%A2%84%E8%A7%88"><span class="nav-number">4.</span> <span class="nav-text">本地预览</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%85%8D%E7%BD%AE%E9%83%A8%E7%BD%B2%E5%88%B0-github-pages"><span class="nav-number">5.</span> <span class="nav-text">配置部署到 github pages</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%80%E5%90%8E"><span class="nav-number">6.</span> <span class="nav-text">最后</span></a></li></ol></div>
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5%E4%B8%8E%E5%88%86%E7%B1%BB"><span class="nav-number">1.</span> <span class="nav-text">核心概念与分类</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%AD%E6%96%AD%E7%B1%BB%E5%9E%8B-Type"><span class="nav-number">1.1.</span> <span class="nav-text">中断类型 (Type)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%AD%E6%96%AD%E6%8F%8F%E8%BF%B0%E7%AC%A6%E8%A1%A8-IDT-Interrupt-Descriptor-Table"><span class="nav-number">1.2.</span> <span class="nav-text">中断描述符表 (IDT, Interrupt Descriptor Table)</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%AD%E6%96%AD%E5%A4%84%E7%90%86%E6%B5%81%E7%A8%8B"><span class="nav-number">2.</span> <span class="nav-text">中断处理流程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%AD%E6%96%AD%E7%9A%84%E4%B8%8A%E4%B8%8B%E5%8D%8A%E9%83%A8%E6%9C%BA%E5%88%B6-Top-Half-Bottom-Half"><span class="nav-number">3.</span> <span class="nav-text">中断的上下半部机制 (Top-Half &amp; Bottom-Half)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%89%E7%A7%8D%E4%B8%BB%E8%A6%81%E7%9A%84%E5%BA%95%E5%8D%8A%E9%83%A8%E5%AE%9E%E7%8E%B0%E6%9C%BA%E5%88%B6"><span class="nav-number">3.1.</span> <span class="nav-text">三种主要的底半部实现机制</span></a></li></ol></li></ol></div>
         </div>
         <!--/noindex-->
 
@@ -206,7 +207,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/08/15/%E7%94%A8Hexo-github-pages%E6%90%AD%E5%BB%BA%E4%B8%80%E4%B8%AA%E5%AE%8C%E5%85%A8%E5%85%8D%E8%B4%B9%E7%9A%84%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2/">
+    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/11/30/Linux-%E4%B8%AD%E6%96%AD%E5%A4%84%E7%90%86%E6%9C%BA%E5%88%B6%E6%A2%B3%E7%90%86/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -219,12 +220,12 @@
     </span>
 
     <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
-      <meta itemprop="name" content="用Hexo &amp; github pages搭建一个完全免费的个人博客 | 星河拾遗">
+      <meta itemprop="name" content="Linux 中断处理机制梳理 | 星河拾遗">
       <meta itemprop="description" content="">
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          用Hexo & github pages搭建一个完全免费的个人博客
+          Linux 中断处理机制梳理
         </h1>
 
         <div class="post-meta-container">
@@ -234,15 +235,9 @@
         <i class="far fa-calendar"></i>
       </span>
       <span class="post-meta-item-text">Posted on</span>
+      
 
-      <time title="Created: 2025-08-15 00:17:51" itemprop="dateCreated datePublished" datetime="2025-08-15T00:17:51+08:00">2025-08-15</time>
-    </span>
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar-check"></i>
-      </span>
-      <span class="post-meta-item-text">Edited on</span>
-      <time title="Modified: 2025-11-22 22:06:02" itemprop="dateModified" datetime="2025-11-22T22:06:02+08:00">2025-11-22</time>
+      <time title="Created: 2025-11-30 14:41:31 / Modified: 14:59:11" itemprop="dateCreated datePublished" datetime="2025-11-30T14:41:31+08:00">2025-11-30</time>
     </span>
 
   
@@ -254,40 +249,116 @@
     
     
     
-    <div class="post-body" itemprop="articleBody"><h2 id="准备环境"><a href="#准备环境" class="headerlink" title="准备环境"></a>准备环境</h2><ol>
-<li>安装 Node.js（建议 LTS 版本）<a target="_blank" rel="noopener" href="https://nodejs.org/">https://nodejs.org</a></li>
-<li>安装 Git <a target="_blank" rel="noopener" href="https://git-scm.com/">https://git-scm.com</a></li>
-</ol>
-<h2 id="创建github-repo"><a href="#创建github-repo" class="headerlink" title="创建github repo"></a>创建github repo</h2><ol>
-<li>新建仓库，命名为<code>username.github.io</code>, (username必须是你的github用户名)</li>
-<li>选择public （不需要初始化README）</li>
-</ol>
-<h2 id="安装Hexo"><a href="#安装Hexo" class="headerlink" title="安装Hexo"></a>安装Hexo</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 全局安装 Hexo</span></span><br><span class="line">npm install -g hexo-cli</span><br><span class="line"></span><br><span class="line"><span class="comment"># 新建博客文件夹</span></span><br><span class="line">hexo init myblog</span><br><span class="line"><span class="built_in">cd</span> myblog</span><br><span class="line"></span><br><span class="line"><span class="comment"># 安装依赖</span></span><br><span class="line">npm install</span><br></pre></td></tr></table></figure>
-
-<h2 id="本地预览"><a href="#本地预览" class="headerlink" title="本地预览"></a>本地预览</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hexo server</span><br></pre></td></tr></table></figure>
-
-<h2 id="配置部署到-github-pages"><a href="#配置部署到-github-pages" class="headerlink" title="配置部署到 github pages"></a>配置部署到 github pages</h2><ol>
-<li>安装部署插件<code>npm install hexo-deployer-git --save</code></li>
-<li>编辑 <code>_config.yml</code>（Hexo 根目录下），找到 deploy 部分，修改如下：</li>
-</ol>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">deploy:</span><br><span class="line">  <span class="built_in">type</span>: git</span><br><span class="line">  repo: https://github.com/yourusername/yourusername.github.io.git</span><br><span class="line">  branch: main</span><br></pre></td></tr></table></figure>
-<ol start="3">
-<li>生成并部署</li>
-</ol>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">hexo clean</span><br><span class="line">hexo generate</span><br><span class="line">hexo deploy</span><br></pre></td></tr></table></figure>
-<ol start="4">
-<li><p>点击访问<code>https://username.github.io</code>，就能看到博客的样子啦<br>这就上线啦！</p>
+    <div class="post-body" itemprop="articleBody"><p>中断 (Interrupt) 是处理器接收到的一个信号，指示需要立即暂停当前执行的任务，转而去处理一个特定事件。在 Linux 中，它是实现 I&#x2F;O、计时器和进程调度的基础。</p>
+<h2 id="核心概念与分类"><a href="#核心概念与分类" class="headerlink" title="核心概念与分类"></a>核心概念与分类</h2><h3 id="中断类型-Type"><a href="#中断类型-Type" class="headerlink" title="中断类型 (Type)"></a>中断类型 (Type)</h3><ul>
+<li><p>硬件中断 (Hardware Interrupts): 由外部设备（如键盘、网卡、磁盘）通过中断控制器（如 APIC）发出的信号。它们是异步的。</p>
 </li>
-<li><p>怎么写文章？用<code>hexo new post &quot;豆角要不要炖太熟？</code><br>写完后运行<code>hexo clean &amp;&amp; hexo generate &amp;&amp; hexo deploy</code></p>
+<li><p>软件中断 (Software Interrupts&#x2F;Exceptions): 由 CPU 自身在执行指令时产生，通常是同步的。</p>
+<ul>
+<li><p>异常 (Exceptions): 处理器执行指令的同步事件，例如除零错误、页错误（缺页）。</p>
+</li>
+<li><p>系统调用 (System Calls): 一种特殊的软件中断，用于从用户空间切换到内核空间。</p>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="中断描述符表-IDT-Interrupt-Descriptor-Table"><a href="#中断描述符表-IDT-Interrupt-Descriptor-Table" class="headerlink" title="中断描述符表 (IDT, Interrupt Descriptor Table)"></a>中断描述符表 (IDT, Interrupt Descriptor Table)</h3><p>IDT 是内核维护的一个数据结构，它将每个中断或异常的向量号（0-255）映射到对应的内核处理函数（中断服务程序，ISR）的入口地址。当 CPU 接收到一个中断信号时，会通过 IDT 找到并跳转到正确的处理代码。</p>
+<h2 id="中断处理流程"><a href="#中断处理流程" class="headerlink" title="中断处理流程"></a>中断处理流程</h2><p>一个硬件中断从设备发生到内核执行处理程序的完整流程可以概括为以下步骤：</p>
+<ol>
+<li><p>设备发起中断： 硬件设备（如网卡）完成工作，向中断控制器（如 APIC）发送电信号。</p>
+</li>
+<li><p>中断控制器通知 CPU： 中断控制器将信号发送给 CPU 的一个或多个核心。</p>
+</li>
+<li><p>CPU 响应：</p>
+<ul>
+<li><p>CPU 停止当前执行的代码。</p>
+</li>
+<li><p>保存当前执行状态（寄存器、程序计数器等）到内核堆栈。</p>
+</li>
+<li><p>CPU 硬件根据中断向量号，通过 IDT 查找对应的中断门描述符。</p>
+</li>
+<li><p>CPU 切换到内核模式。</p>
+</li>
+</ul>
+</li>
+<li><p>汇编层面的初步处理 (Entry Code)： 执行 IDT 中指向的汇编代码，这是通用的入口代码。</p>
+<ul>
+<li><p>进一步保存所有通用寄存器。</p>
+</li>
+<li><p>设置内核堆栈。</p>
+</li>
+<li><p>跳转到 C 语言编写的通用中断处理程序 do_IRQ（或类似的架构特定函数）。</p>
+</li>
+</ul>
+</li>
+<li><p>C 语言中断处理 (Top-Half)：</p>
+<ul>
+<li><p>do_IRQ 屏蔽该中断线，防止重入。</p>
+</li>
+<li><p>查找并调用注册到该中断线的中断服务程序 (ISR)。</p>
+</li>
+<li><p>ISR 快速执行必要的、耗时短的关键任务（如确认中断、清除硬件状态）。</p>
+</li>
+<li><p>如果需要进行耗时任务，ISR 安排底半部工作。</p>
+</li>
+</ul>
+</li>
+<li><p>退出中断：</p>
+<ul>
+<li><p>ISR 返回，do_IRQ 发送 EOI (End of Interrupt) 信号给中断控制器。</p>
+</li>
+<li><p>检查并执行底半部任务。</p>
+</li>
+<li><p>汇编代码恢复所有寄存器状态。</p>
+</li>
+<li><p>CPU 返回到被中断的任务继续执行。</p>
+</li>
+</ul>
 </li>
 </ol>
-<h2 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h2><p>github有时候不稳定，有条件的话可以买一个域名（阿里云、腾讯云都行）<br>在域名 DNS 里添加：<br><code>CNAME  yourusername.github.io</code></p>
-<p>在 GitHub 仓库的 Settings &gt; Pages 里绑定域名。</p>
-<p>在博客根目录的 source 文件夹里加一个 CNAME 文件，写上你的域名。<br>我当初在阿里云上买的，9块钱一整年，白菜价！</p>
-<hr>
-<blockquote>
-<p>最后的最后。想当初我也是用同样的方法做过个人博客，后来github账号的MFA认证码丢了，账号就再也找不回来了，连带着以前做过的东西也丢了……</p>
-</blockquote>
+<h2 id="中断的上下半部机制-Top-Half-Bottom-Half"><a href="#中断的上下半部机制-Top-Half-Bottom-Half" class="headerlink" title="中断的上下半部机制 (Top-Half &amp; Bottom-Half)"></a>中断的上下半部机制 (Top-Half &amp; Bottom-Half)</h2><p>为了保证中断响应的低延迟和高效率，Linux 将中断处理逻辑分为两个部分：</p>
+<ol>
+<li><p>上半部 (Top-Half)</p>
+<p> 执行环境： 处于中断上下文中，禁止或屏蔽了部分甚至所有中断。</p>
+<p> 特性： 运行速度极快，不能睡眠或调用任何可能阻塞的函数。</p>
+<p> 任务： 接收中断信号、清除硬件状态、读取关键数据、调度底半部。</p>
+<p> 目标： 尽快完成并释放 CPU，恢复中断响应能力。</p>
+</li>
+<li><p>底半部 (Bottom-Half)</p>
+<p> 执行环境： 不处于中断上下文中，可以接收中断。</p>
+<p> 特性： 允许运行时间较长，可以进行复杂操作（如网络协议栈处理、磁盘 I&#x2F;O 完成）。</p>
+<p> 任务： 执行大部分实际数据处理和逻辑。</p>
+<p> 目标： 将耗时工作从上半部剥离，减少上半部对系统中断延迟的影响。</p>
+</li>
+</ol>
+<h3 id="三种主要的底半部实现机制"><a href="#三种主要的底半部实现机制" class="headerlink" title="三种主要的底半部实现机制"></a>三种主要的底半部实现机制</h3><table>
+<thead>
+<tr>
+<th>机制名称</th>
+<th>调度方式</th>
+<th>执行上下文</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Softirqs (软中断)</td>
+<td>由内核在特定时间点（如中断返回前、内核线程中）触发</td>
+<td>中断上下文或软中断上下文（非抢占）</td>
+<td>适用于高性能、对延迟要求极高的场景（如网络、计时器）。数量固定</td>
+</tr>
+<tr>
+<td>Tasklets (任务队列)</td>
+<td>基于 Softirqs 实现</td>
+<td>软中断上下文</td>
+<td>动态创建，适用于非网络和计时器等场景，同一 Tasklet 不会并发执行</td>
+</tr>
+<tr>
+<td>Workqueues (工作队列)</td>
+<td>通过专用的内核线程执行</td>
+<td>进程上下文</td>
+<td>最灵活，可以睡眠、阻塞，适用于需要进行 I&#x2F;O 或耗时操作的场景</td>
+</tr>
+</tbody></table>
 
     </div>
 
@@ -297,22 +368,20 @@
 
     <footer class="post-footer">
           <div class="post-tags">
-              <a href="/tags/Hexo/" rel="tag"># Hexo</a>
-              <a href="/tags/github/" rel="tag"># github</a>
+              <a href="/tags/Linux/" rel="tag"># Linux</a>
+              <a href="/tags/Driver/" rel="tag"># Driver</a>
+              <a href="/tags/Interrupt/" rel="tag"># Interrupt</a>
           </div>
 
         
 
           <div class="post-nav">
             <div class="post-nav-item">
-                <a href="/2025/08/14/hello-world/" rel="prev" title="Hello World">
-                  <i class="fa fa-angle-left"></i> Hello World
+                <a href="/2025/11/30/GPIO-%E5%AD%90%E7%B3%BB%E7%BB%9F%E4%B8%8E-Pinctrl-%E5%AD%90%E7%B3%BB%E7%BB%9F%E7%9A%84%E5%85%B3%E7%B3%BB%E5%92%8C%E7%90%86%E8%A7%A3/" rel="prev" title="GPIO 子系统与 Pinctrl 子系统的关系和理解">
+                  <i class="fa fa-angle-left"></i> GPIO 子系统与 Pinctrl 子系统的关系和理解
                 </a>
             </div>
             <div class="post-nav-item">
-                <a href="/2025/11/22/%E7%A2%8E%E7%89%87/" rel="next" title="碎片">
-                  碎片 <i class="fa fa-angle-right"></i>
-                </a>
             </div>
           </div>
     </footer>
@@ -364,7 +433,7 @@
 </noscript>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.8.0/gitalk.css" integrity="sha256-AJnUHL7dBv6PGaeyPQJcgQPDjt/Hn/PvYZde1iqfp8U=" crossorigin="anonymous">
 
-<script class="next-config" data-name="gitalk" type="application/json">{"enable":true,"github_id":null,"repo":null,"client_id":null,"client_secret":null,"admin_user":null,"distraction_free_mode":true,"proxy":"https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token","language":null,"body":null,"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.8.0/gitalk.min.js","integrity":"sha256-MVK9MGD/XJaGyIghSVrONSnoXoGh3IFxLw0zfvzpxR4="},"path_md5":"21350e6e45189a984309dc826783c4a9"}</script>
+<script class="next-config" data-name="gitalk" type="application/json">{"enable":true,"github_id":null,"repo":null,"client_id":null,"client_secret":null,"admin_user":null,"distraction_free_mode":true,"proxy":"https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token","language":null,"body":null,"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.8.0/gitalk.min.js","integrity":"sha256-MVK9MGD/XJaGyIghSVrONSnoXoGh3IFxLw0zfvzpxR4="},"path_md5":"b7d9d2ab0a8edd3cee7dd50f9de8d00c"}</script>
 <script src="/js/third-party/comments/gitalk.js" defer></script>
 
 </body>
