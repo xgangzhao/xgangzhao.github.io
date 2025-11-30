@@ -228,7 +228,7 @@
       <span class="post-meta-item-text">Posted on</span>
       
 
-      <time title="Created: 2025-11-30 14:41:31 / Modified: 14:59:11" itemprop="dateCreated datePublished" datetime="2025-11-30T14:41:31+08:00">2025-11-30</time>
+      <time title="Created: 2025-11-30 14:41:31 / Modified: 15:03:29" itemprop="dateCreated datePublished" datetime="2025-11-30T14:41:31+08:00">2025-11-30</time>
     </span>
 
   
@@ -317,7 +317,7 @@
 <p> 目标： 尽快完成并释放 CPU，恢复中断响应能力。</p>
 </li>
 <li><p>底半部 (Bottom-Half)</p>
-<p> 执行环境： 不处于中断上下文中，可以接收中断。</p>
+<p> 执行环境： 一些底半部机制（软中断和tasklet）是在软中断上下文中执行的，严格来说也是在中断上下文中。但它们不会立即执行，而是在硬中断处理完之后，由内核调度执行。（PS：这点比较迷惑，不太清晰）</p>
 <p> 特性： 允许运行时间较长，可以进行复杂操作（如网络协议栈处理、磁盘 I&#x2F;O 完成）。</p>
 <p> 任务： 执行大部分实际数据处理和逻辑。</p>
 <p> 目标： 将耗时工作从上半部剥离，减少上半部对系统中断延迟的影响。</p>
