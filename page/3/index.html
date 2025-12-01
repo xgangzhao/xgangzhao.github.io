@@ -166,13 +166,13 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
         <a href="/archives/">
-          <span class="site-state-item-count">12</span>
+          <span class="site-state-item-count">13</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-tags">
           <a href="/tags/">
-        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-count">11</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -198,7 +198,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/11/27/C%E4%B8%AD%E4%BA%8C%E7%BB%B4%E6%95%B0%E7%BB%84%E7%9A%84%E5%B8%83%E5%B1%80%E5%92%8C%E4%BC%A0%E5%8F%82%E9%97%AE%E9%A2%98/">
+    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/11/30/GPIO-%E5%AD%90%E7%B3%BB%E7%BB%9F%E4%B8%8E-Pinctrl-%E5%AD%90%E7%B3%BB%E7%BB%9F%E7%9A%84%E5%85%B3%E7%B3%BB%E5%92%8C%E7%90%86%E8%A7%A3/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -216,7 +216,7 @@
     </span>
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
-          <a href="/2025/11/27/C%E4%B8%AD%E4%BA%8C%E7%BB%B4%E6%95%B0%E7%BB%84%E7%9A%84%E5%B8%83%E5%B1%80%E5%92%8C%E4%BC%A0%E5%8F%82%E9%97%AE%E9%A2%98/" class="post-title-link" itemprop="url">C中二维数组的布局和传参问题</a>
+          <a href="/2025/11/30/GPIO-%E5%AD%90%E7%B3%BB%E7%BB%9F%E4%B8%8E-Pinctrl-%E5%AD%90%E7%B3%BB%E7%BB%9F%E7%9A%84%E5%85%B3%E7%B3%BB%E5%92%8C%E7%90%86%E8%A7%A3/" class="post-title-link" itemprop="url">GPIO 子系统与 Pinctrl 子系统的关系和理解</a>
         </h2>
 
         <div class="post-meta-container">
@@ -228,7 +228,7 @@
       <span class="post-meta-item-text">Posted on</span>
       
 
-      <time title="Created: 2025-11-27 23:13:07 / Modified: 23:30:46" itemprop="dateCreated datePublished" datetime="2025-11-27T23:13:07+08:00">2025-11-27</time>
+      <time title="Created: 2025-11-30 00:03:55 / Modified: 00:10:25" itemprop="dateCreated datePublished" datetime="2025-11-30T00:03:55+08:00">2025-11-30</time>
     </span>
 
   
@@ -241,26 +241,75 @@
     
     
     <div class="post-body" itemprop="articleBody">
-          <p>c中，用malloc创建的“二维数组”，其实并不是真正意义上的数组，因为它的地址是不连续的</p>
-<p>上代码：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">func2</span><span class="params">(<span class="type">int</span> **arr, <span class="type">int</span> rows, <span class="type">int</span> cols)</span> &#123;</span><br><span class="line">    <span class="keyword">for</span>(<span class="type">int</span> i = <span class="number">0</span>; i &lt; rows; i++) &#123;</span><br><span class="line">        <span class="keyword">for</span>(<span class="type">int</span> j = <span class="number">0</span>; j &lt; cols; j++) &#123;</span><br><span class="line">            <span class="built_in">printf</span>(<span class="string">&quot;%d &quot;</span>, arr[i][j]);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;\n&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 正确创建和传递</span></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="type">int</span> rows = <span class="number">2</span>, cols = <span class="number">3</span>;</span><br><span class="line"></span><br><span class="line">    <span class="type">int</span> realArray[<span class="number">2</span>][<span class="number">3</span>] = &#123;&#123;<span class="number">4</span>, <span class="number">5</span>, <span class="number">6</span>&#125;, &#123;<span class="number">7</span>, <span class="number">8</span>, <span class="number">9</span>&#125;&#125;;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 正确创建指针数组</span></span><br><span class="line">    <span class="type">int</span> **arr = <span class="built_in">malloc</span>(rows * <span class="keyword">sizeof</span>(<span class="type">int</span>*));</span><br><span class="line">    <span class="keyword">for</span>(<span class="type">int</span> i = <span class="number">0</span>; i &lt; rows; i++) &#123;</span><br><span class="line">        arr[i] = <span class="built_in">malloc</span>(cols * <span class="keyword">sizeof</span>(<span class="type">int</span>));</span><br><span class="line">        <span class="keyword">for</span>(<span class="type">int</span> j = <span class="number">0</span>; j &lt; cols; j++) &#123;</span><br><span class="line">            arr[i][j] = i * cols + j + <span class="number">1</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    func2(arr, rows, cols);  <span class="comment">// 正确！</span></span><br><span class="line">    func2(realArray, rows, cols);  <span class="comment">// 错误！</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 记得释放内存</span></span><br><span class="line">    <span class="keyword">for</span>(<span class="type">int</span> i = <span class="number">0</span>; i &lt; rows; i++) &#123;</span><br><span class="line">        <span class="built_in">free</span>(arr[i]);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">free</span>(arr);</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>用GDB分析其内存：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">(gdb) n</span><br><span class="line"><span class="number">22</span>          <span class="keyword">for</span>(<span class="type">int</span> i = <span class="number">0</span>; i &lt; rows; i++) &#123;</span><br><span class="line">(gdb) n</span><br><span class="line"><span class="number">29</span>          func2(arr, rows, cols);  <span class="comment">// 正确！</span></span><br><span class="line">(gdb) n</span><br><span class="line"><span class="number">1</span> <span class="number">2</span> <span class="number">3</span> </span><br><span class="line"><span class="number">4</span> <span class="number">5</span> <span class="number">6</span> </span><br><span class="line"><span class="number">30</span>          func2(realArray, rows, cols); </span><br><span class="line">(gdb) print/x &amp;realArray[<span class="number">0</span>][<span class="number">0</span>]</span><br><span class="line">$<span class="number">1</span> = <span class="number">0x7fffffffd7a0</span></span><br><span class="line">(gdb) print/x &amp;realArray[<span class="number">0</span>][<span class="number">1</span>]</span><br><span class="line">$<span class="number">2</span> = <span class="number">0x7fffffffd7a4</span></span><br><span class="line">(gdb) print/x &amp;realArray[<span class="number">0</span>][<span class="number">2</span>]</span><br><span class="line">$<span class="number">3</span> = <span class="number">0x7fffffffd7a8</span></span><br><span class="line">(gdb) print/x &amp;realArray[<span class="number">1</span>][<span class="number">0</span>]</span><br><span class="line">$<span class="number">4</span> = <span class="number">0x7fffffffd7ac</span></span><br><span class="line">(gdb) print/x &amp;realArray[<span class="number">1</span>][<span class="number">1</span>]</span><br><span class="line">$<span class="number">5</span> = <span class="number">0x7fffffffd7b0</span></span><br><span class="line">(gdb) print/x &amp;realArray[<span class="number">1</span>][<span class="number">2</span>]</span><br><span class="line">$<span class="number">6</span> = <span class="number">0x7fffffffd7b4</span></span><br></pre></td></tr></table></figure>
-
-<p>我们可以看到，realArray的内存地址是逐渐增加的，连续的。</p>
-<p>再来看看arr：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">(gdb) print/x &amp;arr[<span class="number">0</span>][<span class="number">0</span>]</span><br><span class="line">$<span class="number">7</span> = <span class="number">0x5555555592c0</span></span><br><span class="line">(gdb) print/x &amp;arr[<span class="number">0</span>][<span class="number">1</span>]</span><br><span class="line">$<span class="number">8</span> = <span class="number">0x5555555592c4</span></span><br><span class="line">(gdb) print/x &amp;arr[<span class="number">0</span>][<span class="number">2</span>]</span><br><span class="line">$<span class="number">9</span> = <span class="number">0x5555555592c8</span></span><br><span class="line">(gdb) print/x &amp;arr[<span class="number">1</span>][<span class="number">0</span>]</span><br><span class="line">$<span class="number">10</span> = <span class="number">0x5555555592e0</span></span><br><span class="line">(gdb) print/x &amp;arr[<span class="number">1</span>][<span class="number">1</span>]</span><br><span class="line">$<span class="number">11</span> = <span class="number">0x5555555592e4</span></span><br><span class="line">(gdb) print/x &amp;arr[<span class="number">1</span>][<span class="number">2</span>]</span><br><span class="line">$<span class="number">12</span> = <span class="number">0x5555555592e8</span></span><br></pre></td></tr></table></figure>
-
-<p>可以看出，<strong>行内是连续的，但行间并不连续</strong>（0x5555555592e0 - 0x5555555592c8 ！&#x3D; 4字节）</p>
-<p>所以，在运行时候，会发生coredump:</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">zhaoxigang@pc-zxg:~/temp/testarray$ ./test </span><br><span class="line">1 2 3 </span><br><span class="line">4 5 6 </span><br><span class="line">Segmentation fault (core dumped)</span><br></pre></td></tr></table></figure>
-
-<p>实际上，在编译时候就会有个警告：</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">zhaoxigang@pc-zxg:~/temp/testarray$ gcc -g test.c -o <span class="built_in">test</span></span><br><span class="line">test.c: In <span class="keyword">function</span> ‘main’:</span><br><span class="line">test.c:30:11: warning: passing argument 1 of ‘func2’ from incompatible pointer <span class="built_in">type</span> [-Wincompatible-pointer-types]</span><br><span class="line">   30 |     func2(realArray, rows, cols);</span><br><span class="line">      |           ^~~~~~~~~</span><br><span class="line">      |           |</span><br><span class="line">      |           int (*)[3]</span><br><span class="line">test.c:5:18: note: expected ‘int **’ but argument is of <span class="built_in">type</span> ‘int (*)[3]’</span><br><span class="line">    5 | void func2(int **arr, int rows, int cols) &#123;</span><br><span class="line">      |            ~~~~~~^~~</span><br></pre></td></tr></table></figure>
-
-<p>正确做法:<br>如果确实要传一个真正的数组，应该指定数组的第二维:</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">correct_func2</span><span class="params">(<span class="type">int</span> rows, <span class="type">int</span> cols, <span class="type">int</span> arr[][cols])</span> &#123;</span><br><span class="line">    <span class="keyword">for</span>(<span class="type">int</span> i = <span class="number">0</span>; i &lt; rows; i++) &#123;</span><br><span class="line">        <span class="keyword">for</span>(<span class="type">int</span> j = <span class="number">0</span>; j &lt; cols; j++) &#123;</span><br><span class="line">            <span class="built_in">printf</span>(<span class="string">&quot;%d &quot;</span>, arr[i][j]);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;\n&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+          <p>在嵌入式 Linux 系统中，GPIO（General Purpose Input&#x2F;Output）子系统和Pinctrl（Pin Control）子系统都是用于处理硬件引脚（GPIO pins）的重要模块，但它们的功能、职责和实现方式有所不同。</p>
+<h2 id="GPIO-子系统"><a href="#GPIO-子系统" class="headerlink" title="GPIO 子系统"></a>GPIO 子系统</h2><h3 id="功能"><a href="#功能" class="headerlink" title="功能"></a>功能</h3><p>GPIO 是一种通用的输入输出接口，允许操作硬件的数字信号引脚（例如 LED、按钮、传感器等）。这些引脚通常由硬件平台的处理器（SOC）提供。</p>
+<p>GPIO 子系统 负责：</p>
+<ul>
+<li><p>管理 GPIO 引脚的 配置、状态（输入&#x2F;输出、低电平&#x2F;高电平等）。</p>
+</li>
+<li><p>提供 API 接口，如 gpio_request、gpio_direction_output、gpio_set_value 等，供驱动程序或用户空间应用程序控制 GPIO 引脚的电平、方向等。</p>
+</li>
+</ul>
+<h3 id="常用-API"><a href="#常用-API" class="headerlink" title="常用 API"></a>常用 API</h3><p>gpio_request(): 申请一个 GPIO 引脚。</p>
+<p>gpio_direction_output(): 设置 GPIO 为输出模式。</p>
+<p>gpio_set_value(): 设置 GPIO 电平。</p>
+<p>gpio_get_value(): 读取 GPIO 电平。</p>
+<p>gpio_free(): 释放 GPIO 引脚。</p>
+<h3 id="工作原理"><a href="#工作原理" class="headerlink" title="工作原理"></a>工作原理</h3><p>GPIO 控制 是基于硬件引脚的数字信号传输。在 Linux 中，GPIO 是通过访问 SOC 的引脚寄存器来进行控制的。开发者通过 GPIO 控制硬件，主要用于处理输入输出设备，如按钮、LED、继电器等。</p>
+<h2 id="Pinctrl-子系统"><a href="#Pinctrl-子系统" class="headerlink" title="Pinctrl 子系统"></a>Pinctrl 子系统</h2><h3 id="功能-1"><a href="#功能-1" class="headerlink" title="功能"></a>功能</h3><p>Pinctrl 子系统 主要用于管理和配置引脚的 多重功能（muxing）和 电气属性（电压、电流、上拉&#x2F;下拉、驱动能力等）。</p>
+<p>在一个处理器中，每个物理引脚（例如 GPIO1、GPIO2）可能有 多个功能（例如 UART、SPI、I2C、GPIO 等），Pinctrl 子系统负责选择和配置这些功能，并确保不同功能之间的协调。</p>
+<h3 id="常用-API-1"><a href="#常用-API-1" class="headerlink" title="常用 API"></a>常用 API</h3><p>pinctrl_get(): 获取 pinctrl 配置。</p>
+<p>pinmux_select(): 配置引脚的多重功能（如 UART、SPI、GPIO）。</p>
+<p>pinctrl_select_default(): 配置引脚为默认状态（通常是 GPIO）。</p>
+<h3 id="工作原理-1"><a href="#工作原理-1" class="headerlink" title="工作原理"></a>工作原理</h3><p>Pinctrl 子系统 配置引脚的功能选择和电气属性。例如，处理器的某些引脚在某些模式下可能是 UART 的 RX&#x2F;TX 引脚，而在其他模式下可能是 GPIO 引脚。Pinctrl 子系统在不同模式间切换时，确保正确设置。</p>
+<p>例如，某个引脚被配置为 GPIO 时，它会作为普通的输入&#x2F;输出端口；而当被配置为 UART 时，它会变为 UART 接口的 RX 或 TX。</p>
+<h2 id="GPIO-子系统与-Pinctrl-子系统的关系"><a href="#GPIO-子系统与-Pinctrl-子系统的关系" class="headerlink" title="GPIO 子系统与 Pinctrl 子系统的关系"></a>GPIO 子系统与 Pinctrl 子系统的关系</h2><p>虽然 GPIO 子系统 和 Pinctrl 子系统 处理的是同一类硬件资源（即引脚），但它们的作用和层次不同：</p>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>GPIO 子系统</th>
+<th>Pinctrl 子系统</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>管理</td>
+<td>主要管理引脚的输入输出状态、方向和电平（高&#x2F;低）</td>
+<td>管理引脚的多功能复用（muxing）和电气属性</td>
+</tr>
+<tr>
+<td>层次</td>
+<td>GPIO 子系统是一个 更高层的接口，通过它可以控制硬件引脚的电平、方向</td>
+<td>Pinctrl 子系统是一个 底层配置，提供引脚功能的切换与电气配置</td>
+</tr>
+<tr>
+<td>控制的内容</td>
+<td>GPIO 引脚的状态（例如控制 LED、按钮）</td>
+<td>GPIO 引脚的功能选择（例如切换为 UART、I2C 等）</td>
+</tr>
+<tr>
+<td>调用方式</td>
+<td>通过 API 进行 GPIO 控制，如 gpio_request()、gpio_set_value()</td>
+<td>通过设备树和 pinctrl_* API 配置引脚功能和电气属性</td>
+</tr>
+</tbody></table>
+<h3 id="如何协调工作"><a href="#如何协调工作" class="headerlink" title="如何协调工作"></a>如何协调工作</h3><ul>
+<li>硬件层面的映射：</li>
+</ul>
+<p>每个物理引脚通常有多个功能，可以通过 Pinctrl 子系统 配置选择某个功能。</p>
+<p>配置完成后，GPIO 子系统可以操作这个引脚。例如，可以在一个引脚上选择 UART 功能来发送数据，也可以选择 GPIO 功能来控制一个 LED。</p>
+<ul>
+<li>设备树的定义：</li>
+</ul>
+<p>在设备树中，Pinctrl 子系统 和 GPIO 子系统 都需要进行相应的配置。Pinctrl 负责配置引脚的多功能模式（例如，把引脚设置为 UART），而 GPIO 子系统负责后续对该引脚的操作（例如，读取按钮的状态或控制 LED）。</p>
+<p>例如，设备树中的配置可能如下：</p>
+<p>&amp;gpio1 {<br>    pinctrl-names &#x3D; “default”;<br>    pinctrl-0 &#x3D; &lt;&amp;gpio1_pins&gt;;<br>    led-gpio &#x3D; &lt;&amp;gpio1 3 GPIO_ACTIVE_LOW&gt;; &#x2F;&#x2F; 这里是GPIO控制<br>};</p>
+<p>在这个例子中，pinctrl-0 配置了 GPIO1 引脚的功能（例如把它设置为 GPIO 功能），而 led-gpio 通过 GPIO 子系统来控制这个引脚的电平。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>GPIO 子系统 负责引脚的 输入输出控制，通过设置引脚电平、方向等来进行硬件控制。</p>
+<p>Pinctrl 子系统 负责引脚的 多功能复用配置，使得同一引脚可以在不同的硬件功能之间切换。</p>
+<h3 id="二者的关系："><a href="#二者的关系：" class="headerlink" title="二者的关系："></a>二者的关系：</h3><p>Pinctrl 子系统 主要进行硬件引脚功能的选择和配置（例如，设置为 UART、SPI 或 GPIO），</p>
+<p>GPIO 子系统 通过操作引脚电平进行控制。</p>
+<p>这两个子系统通常是配合使用的，通过设备树来协调硬件功能的配置，GPIO 子系统在硬件功能被选择后操作引脚。</p>
 
       
     </div>
@@ -280,7 +329,7 @@
 
 
   <nav class="pagination">
-    <a class="extend prev" rel="prev" title="Previous page" aria-label="Previous page" href="/page/2/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" title="Next page" aria-label="Next page" href="/page/4/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" title="Previous page" aria-label="Previous page" href="/page/2/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><span class="space">&hellip;</span><a class="page-number" href="/page/13/">13</a><a class="extend next" rel="next" title="Next page" aria-label="Next page" href="/page/4/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 </div>
