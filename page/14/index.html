@@ -21,17 +21,17 @@
 
     <meta property="og:type" content="website">
 <meta property="og:title" content="星河拾遗">
-<meta property="og:url" content="https://xgangzhao.github.io/page/4/index.html">
+<meta property="og:url" content="https://xgangzhao.github.io/page/14/index.html">
 <meta property="og:site_name" content="星河拾遗">
 <meta property="og:locale" content="en_US">
 <meta property="article:author" content="Xigang Zhao">
 <meta name="twitter:card" content="summary">
 
 
-<link rel="canonical" href="https://xgangzhao.github.io/page/4/">
+<link rel="canonical" href="https://xgangzhao.github.io/page/14/">
 
 
-<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":true,"isPost":false,"lang":"en","comments":"","permalink":"","path":"page/4/index.html","title":""}</script>
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":true,"isPost":false,"lang":"en","comments":"","permalink":"","path":"page/14/index.html","title":""}</script>
 
 <script class="next-config" data-name="calendar" type="application/json">""</script>
 <title>星河拾遗</title>
@@ -198,7 +198,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/11/30/GPIO-%E5%AD%90%E7%B3%BB%E7%BB%9F%E4%B8%8E-Pinctrl-%E5%AD%90%E7%B3%BB%E7%BB%9F%E7%9A%84%E5%85%B3%E7%B3%BB%E5%92%8C%E7%90%86%E8%A7%A3/">
+    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/08/14/hello-world/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -216,7 +216,7 @@
     </span>
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
-          <a href="/2025/11/30/GPIO-%E5%AD%90%E7%B3%BB%E7%BB%9F%E4%B8%8E-Pinctrl-%E5%AD%90%E7%B3%BB%E7%BB%9F%E7%9A%84%E5%85%B3%E7%B3%BB%E5%92%8C%E7%90%86%E8%A7%A3/" class="post-title-link" itemprop="url">GPIO 子系统与 Pinctrl 子系统的关系和理解</a>
+          <a href="/2025/08/14/hello-world/" class="post-title-link" itemprop="url">Hello World</a>
         </h2>
 
         <div class="post-meta-container">
@@ -226,9 +226,15 @@
         <i class="far fa-calendar"></i>
       </span>
       <span class="post-meta-item-text">Posted on</span>
-      
 
-      <time title="Created: 2025-11-30 00:03:55 / Modified: 00:10:25" itemprop="dateCreated datePublished" datetime="2025-11-30T00:03:55+08:00">2025-11-30</time>
+      <time title="Created: 2025-08-14 00:17:51" itemprop="dateCreated datePublished" datetime="2025-08-14T00:17:51+08:00">2025-08-14</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-11-22 22:35:32" itemprop="dateModified" datetime="2025-11-22T22:35:32+08:00">2025-11-22</time>
     </span>
 
   
@@ -241,75 +247,19 @@
     
     
     <div class="post-body" itemprop="articleBody">
-          <p>在嵌入式 Linux 系统中，GPIO（General Purpose Input&#x2F;Output）子系统和Pinctrl（Pin Control）子系统都是用于处理硬件引脚（GPIO pins）的重要模块，但它们的功能、职责和实现方式有所不同。</p>
-<h2 id="GPIO-子系统"><a href="#GPIO-子系统" class="headerlink" title="GPIO 子系统"></a>GPIO 子系统</h2><h3 id="功能"><a href="#功能" class="headerlink" title="功能"></a>功能</h3><p>GPIO 是一种通用的输入输出接口，允许操作硬件的数字信号引脚（例如 LED、按钮、传感器等）。这些引脚通常由硬件平台的处理器（SOC）提供。</p>
-<p>GPIO 子系统 负责：</p>
-<ul>
-<li><p>管理 GPIO 引脚的 配置、状态（输入&#x2F;输出、低电平&#x2F;高电平等）。</p>
-</li>
-<li><p>提供 API 接口，如 gpio_request、gpio_direction_output、gpio_set_value 等，供驱动程序或用户空间应用程序控制 GPIO 引脚的电平、方向等。</p>
-</li>
-</ul>
-<h3 id="常用-API"><a href="#常用-API" class="headerlink" title="常用 API"></a>常用 API</h3><p>gpio_request(): 申请一个 GPIO 引脚。</p>
-<p>gpio_direction_output(): 设置 GPIO 为输出模式。</p>
-<p>gpio_set_value(): 设置 GPIO 电平。</p>
-<p>gpio_get_value(): 读取 GPIO 电平。</p>
-<p>gpio_free(): 释放 GPIO 引脚。</p>
-<h3 id="工作原理"><a href="#工作原理" class="headerlink" title="工作原理"></a>工作原理</h3><p>GPIO 控制 是基于硬件引脚的数字信号传输。在 Linux 中，GPIO 是通过访问 SOC 的引脚寄存器来进行控制的。开发者通过 GPIO 控制硬件，主要用于处理输入输出设备，如按钮、LED、继电器等。</p>
-<h2 id="Pinctrl-子系统"><a href="#Pinctrl-子系统" class="headerlink" title="Pinctrl 子系统"></a>Pinctrl 子系统</h2><h3 id="功能-1"><a href="#功能-1" class="headerlink" title="功能"></a>功能</h3><p>Pinctrl 子系统 主要用于管理和配置引脚的 多重功能（muxing）和 电气属性（电压、电流、上拉&#x2F;下拉、驱动能力等）。</p>
-<p>在一个处理器中，每个物理引脚（例如 GPIO1、GPIO2）可能有 多个功能（例如 UART、SPI、I2C、GPIO 等），Pinctrl 子系统负责选择和配置这些功能，并确保不同功能之间的协调。</p>
-<h3 id="常用-API-1"><a href="#常用-API-1" class="headerlink" title="常用 API"></a>常用 API</h3><p>pinctrl_get(): 获取 pinctrl 配置。</p>
-<p>pinmux_select(): 配置引脚的多重功能（如 UART、SPI、GPIO）。</p>
-<p>pinctrl_select_default(): 配置引脚为默认状态（通常是 GPIO）。</p>
-<h3 id="工作原理-1"><a href="#工作原理-1" class="headerlink" title="工作原理"></a>工作原理</h3><p>Pinctrl 子系统 配置引脚的功能选择和电气属性。例如，处理器的某些引脚在某些模式下可能是 UART 的 RX&#x2F;TX 引脚，而在其他模式下可能是 GPIO 引脚。Pinctrl 子系统在不同模式间切换时，确保正确设置。</p>
-<p>例如，某个引脚被配置为 GPIO 时，它会作为普通的输入&#x2F;输出端口；而当被配置为 UART 时，它会变为 UART 接口的 RX 或 TX。</p>
-<h2 id="GPIO-子系统与-Pinctrl-子系统的关系"><a href="#GPIO-子系统与-Pinctrl-子系统的关系" class="headerlink" title="GPIO 子系统与 Pinctrl 子系统的关系"></a>GPIO 子系统与 Pinctrl 子系统的关系</h2><p>虽然 GPIO 子系统 和 Pinctrl 子系统 处理的是同一类硬件资源（即引脚），但它们的作用和层次不同：</p>
-<table>
-<thead>
-<tr>
-<th>功能</th>
-<th>GPIO 子系统</th>
-<th>Pinctrl 子系统</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>管理</td>
-<td>主要管理引脚的输入输出状态、方向和电平（高&#x2F;低）</td>
-<td>管理引脚的多功能复用（muxing）和电气属性</td>
-</tr>
-<tr>
-<td>层次</td>
-<td>GPIO 子系统是一个 更高层的接口，通过它可以控制硬件引脚的电平、方向</td>
-<td>Pinctrl 子系统是一个 底层配置，提供引脚功能的切换与电气配置</td>
-</tr>
-<tr>
-<td>控制的内容</td>
-<td>GPIO 引脚的状态（例如控制 LED、按钮）</td>
-<td>GPIO 引脚的功能选择（例如切换为 UART、I2C 等）</td>
-</tr>
-<tr>
-<td>调用方式</td>
-<td>通过 API 进行 GPIO 控制，如 gpio_request()、gpio_set_value()</td>
-<td>通过设备树和 pinctrl_* API 配置引脚功能和电气属性</td>
-</tr>
-</tbody></table>
-<h3 id="如何协调工作"><a href="#如何协调工作" class="headerlink" title="如何协调工作"></a>如何协调工作</h3><ul>
-<li>硬件层面的映射：</li>
-</ul>
-<p>每个物理引脚通常有多个功能，可以通过 Pinctrl 子系统 配置选择某个功能。</p>
-<p>配置完成后，GPIO 子系统可以操作这个引脚。例如，可以在一个引脚上选择 UART 功能来发送数据，也可以选择 GPIO 功能来控制一个 LED。</p>
-<ul>
-<li>设备树的定义：</li>
-</ul>
-<p>在设备树中，Pinctrl 子系统 和 GPIO 子系统 都需要进行相应的配置。Pinctrl 负责配置引脚的多功能模式（例如，把引脚设置为 UART），而 GPIO 子系统负责后续对该引脚的操作（例如，读取按钮的状态或控制 LED）。</p>
-<p>例如，设备树中的配置可能如下：</p>
-<p>&amp;gpio1 {<br>    pinctrl-names &#x3D; “default”;<br>    pinctrl-0 &#x3D; &lt;&amp;gpio1_pins&gt;;<br>    led-gpio &#x3D; &lt;&amp;gpio1 3 GPIO_ACTIVE_LOW&gt;; &#x2F;&#x2F; 这里是GPIO控制<br>};</p>
-<p>在这个例子中，pinctrl-0 配置了 GPIO1 引脚的功能（例如把它设置为 GPIO 功能），而 led-gpio 通过 GPIO 子系统来控制这个引脚的电平。</p>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>GPIO 子系统 负责引脚的 输入输出控制，通过设置引脚电平、方向等来进行硬件控制。</p>
-<p>Pinctrl 子系统 负责引脚的 多功能复用配置，使得同一引脚可以在不同的硬件功能之间切换。</p>
-<h3 id="二者的关系："><a href="#二者的关系：" class="headerlink" title="二者的关系："></a>二者的关系：</h3><p>Pinctrl 子系统 主要进行硬件引脚功能的选择和配置（例如，设置为 UART、SPI 或 GPIO），</p>
-<p>GPIO 子系统 通过操作引脚电平进行控制。</p>
-<p>这两个子系统通常是配合使用的，通过设备树来协调硬件功能的配置，GPIO 子系统在硬件功能被选择后操作引脚。</p>
+          <p>Welcome to <a target="_blank" rel="noopener" href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a target="_blank" rel="noopener" href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a target="_blank" rel="noopener" href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a target="_blank" rel="noopener" href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
+<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/writing.html">Writing</a></p>
+<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/server.html">Server</a></p>
+<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/generating.html">Generating</a></p>
+<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
 
       
     </div>
@@ -329,7 +279,7 @@
 
 
   <nav class="pagination">
-    <a class="extend prev" rel="prev" title="Previous page" aria-label="Previous page" href="/page/3/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/14/">14</a><a class="extend next" rel="next" title="Next page" aria-label="Next page" href="/page/5/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" title="Previous page" aria-label="Previous page" href="/page/13/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/13/">13</a><span class="page-number current">14</span>
   </nav>
 
 </div>
@@ -371,7 +321,7 @@
 </noscript>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.8.0/gitalk.css" integrity="sha256-AJnUHL7dBv6PGaeyPQJcgQPDjt/Hn/PvYZde1iqfp8U=" crossorigin="anonymous">
 
-<script class="next-config" data-name="gitalk" type="application/json">{"enable":true,"github_id":null,"repo":null,"client_id":null,"client_secret":null,"admin_user":null,"distraction_free_mode":true,"proxy":"https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token","language":null,"body":null,"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.8.0/gitalk.min.js","integrity":"sha256-MVK9MGD/XJaGyIghSVrONSnoXoGh3IFxLw0zfvzpxR4="},"path_md5":"dbb1aad0300bb8f37fa677175e85a293"}</script>
+<script class="next-config" data-name="gitalk" type="application/json">{"enable":true,"github_id":null,"repo":null,"client_id":null,"client_secret":null,"admin_user":null,"distraction_free_mode":true,"proxy":"https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token","language":null,"body":null,"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.8.0/gitalk.min.js","integrity":"sha256-MVK9MGD/XJaGyIghSVrONSnoXoGh3IFxLw0zfvzpxR4="},"path_md5":"602aad8aa7612c24ccbd580557f12365"}</script>
 <script src="/js/third-party/comments/gitalk.js" defer></script>
 
 </body>
