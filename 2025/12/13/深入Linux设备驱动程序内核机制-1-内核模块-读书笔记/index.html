@@ -19,26 +19,31 @@
 
 <script class="next-config" data-name="main" type="application/json">{"hostname":"xgangzhao.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.26.0","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":{"gitalk":{"order":-2}},"activeClass":"gitalk"},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
 
-    <meta name="description" content="Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub. Quick">
+    <meta name="description" content="模块，其数据组织形式上是ELF格式的。主要包括ELF header, 若干sections和section header table. 模块的加载过程总的来说，加载模块时，例如使用insmod。其首先利用文件系统的接口将模块读取到用户空间中的一段内存中，然后通过系统调用sys_init_module让内核来处理模块加载的流程。 sys_init_modulestep1: 调用load_module">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Hello World">
-<meta property="og:url" content="https://xgangzhao.github.io/2025/08/14/hello-world/index.html">
+<meta property="og:title" content="深入Linux设备驱动程序内核机制--1-内核模块-(读书笔记)">
+<meta property="og:url" content="https://xgangzhao.github.io/2025/12/13/%E6%B7%B1%E5%85%A5Linux%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E7%A8%8B%E5%BA%8F%E5%86%85%E6%A0%B8%E6%9C%BA%E5%88%B6-1-%E5%86%85%E6%A0%B8%E6%A8%A1%E5%9D%97-%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/index.html">
 <meta property="og:site_name" content="星河拾遗">
-<meta property="og:description" content="Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub. Quick">
+<meta property="og:description" content="模块，其数据组织形式上是ELF格式的。主要包括ELF header, 若干sections和section header table. 模块的加载过程总的来说，加载模块时，例如使用insmod。其首先利用文件系统的接口将模块读取到用户空间中的一段内存中，然后通过系统调用sys_init_module让内核来处理模块加载的流程。 sys_init_modulestep1: 调用load_module">
 <meta property="og:locale" content="en_US">
-<meta property="article:published_time" content="2025-08-13T16:17:51.000Z">
-<meta property="article:modified_time" content="2025-11-22T14:35:32.431Z">
+<meta property="og:image" content="https://xgangzhao.github.io/image.png">
+<meta property="article:published_time" content="2025-12-13T09:00:02.000Z">
+<meta property="article:modified_time" content="2025-12-13T10:08:35.440Z">
 <meta property="article:author" content="Xigang Zhao">
+<meta property="article:tag" content="Linux">
+<meta property="article:tag" content="Driver">
+<meta property="article:tag" content="Kernel">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://xgangzhao.github.io/image.png">
 
 
-<link rel="canonical" href="https://xgangzhao.github.io/2025/08/14/hello-world/">
+<link rel="canonical" href="https://xgangzhao.github.io/2025/12/13/%E6%B7%B1%E5%85%A5Linux%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E7%A8%8B%E5%BA%8F%E5%86%85%E6%A0%B8%E6%9C%BA%E5%88%B6-1-%E5%86%85%E6%A0%B8%E6%A8%A1%E5%9D%97-%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/">
 
 
-<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"en","comments":true,"permalink":"https://xgangzhao.github.io/2025/08/14/hello-world/","path":"2025/08/14/hello-world/","title":"Hello World"}</script>
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"en","comments":true,"permalink":"https://xgangzhao.github.io/2025/12/13/%E6%B7%B1%E5%85%A5Linux%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E7%A8%8B%E5%BA%8F%E5%86%85%E6%A0%B8%E6%9C%BA%E5%88%B6-1-%E5%86%85%E6%A0%B8%E6%A8%A1%E5%9D%97-%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/","path":"2025/12/13/深入Linux设备驱动程序内核机制-1-内核模块-读书笔记/","title":"深入Linux设备驱动程序内核机制--1-内核模块-(读书笔记)"}</script>
 
 <script class="next-config" data-name="calendar" type="application/json">""</script>
-<title>Hello World | 星河拾遗</title>
+<title>深入Linux设备驱动程序内核机制--1-内核模块-(读书笔记) | 星河拾遗</title>
   
 
 
@@ -156,7 +161,7 @@
       <div class="sidebar-panel-container">
         <!--noindex-->
         <div class="post-toc-wrap sidebar-panel">
-            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Quick-Start"><span class="nav-number">1.</span> <span class="nav-text">Quick Start</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Create-a-new-post"><span class="nav-number">1.1.</span> <span class="nav-text">Create a new post</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Run-server"><span class="nav-number">1.2.</span> <span class="nav-text">Run server</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Generate-static-files"><span class="nav-number">1.3.</span> <span class="nav-text">Generate static files</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Deploy-to-remote-sites"><span class="nav-number">1.4.</span> <span class="nav-text">Deploy to remote sites</span></a></li></ol></li></ol></div>
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A8%A1%E5%9D%97%E7%9A%84%E5%8A%A0%E8%BD%BD%E8%BF%87%E7%A8%8B"><span class="nav-number">1.</span> <span class="nav-text">模块的加载过程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#sys-init-module"><span class="nav-number">1.1.</span> <span class="nav-text">sys_init_module</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#step1-%E8%B0%83%E7%94%A8load-module%E5%8A%A0%E8%BD%BD%E6%A8%A1%E5%9D%97"><span class="nav-number">1.1.1.</span> <span class="nav-text">step1: 调用load_module加载模块</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#step2-%E5%8A%A0%E8%BD%BD%E5%90%8E%E7%9A%84%E5%A4%84%E7%90%86"><span class="nav-number">1.1.2.</span> <span class="nav-text">step2: 加载后的处理</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A8%A1%E5%9D%97%E5%A6%82%E4%BD%95%E5%AF%BC%E5%87%BA%E8%87%AA%E8%BA%AB%E7%9A%84%E5%87%BD%E6%95%B0-%E5%8F%98%E9%87%8F"><span class="nav-number">2.</span> <span class="nav-text">模块如何导出自身的函数&#x2F;变量</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A8%A1%E5%9D%97%E7%9A%84%E5%8F%82%E6%95%B0%E4%BC%A0%E9%80%92"><span class="nav-number">3.</span> <span class="nav-text">模块的参数传递</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A8%A1%E5%9D%97%E4%BE%9D%E8%B5%96%E5%85%B3%E7%B3%BB"><span class="nav-number">4.</span> <span class="nav-text">模块依赖关系</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A8%A1%E5%9D%97%E7%89%88%E6%9C%AC%E6%8E%A7%E5%88%B6"><span class="nav-number">5.</span> <span class="nav-text">模块版本控制</span></a></li></ol></div>
         </div>
         <!--/noindex-->
 
@@ -204,7 +209,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/08/14/hello-world/">
+    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/12/13/%E6%B7%B1%E5%85%A5Linux%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E7%A8%8B%E5%BA%8F%E5%86%85%E6%A0%B8%E6%9C%BA%E5%88%B6-1-%E5%86%85%E6%A0%B8%E6%A8%A1%E5%9D%97-%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -217,12 +222,12 @@
     </span>
 
     <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
-      <meta itemprop="name" content="Hello World | 星河拾遗">
+      <meta itemprop="name" content="深入Linux设备驱动程序内核机制--1-内核模块-(读书笔记) | 星河拾遗">
       <meta itemprop="description" content="">
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          Hello World
+          深入Linux设备驱动程序内核机制--1-内核模块-(读书笔记)
         </h1>
 
         <div class="post-meta-container">
@@ -232,15 +237,9 @@
         <i class="far fa-calendar"></i>
       </span>
       <span class="post-meta-item-text">Posted on</span>
+      
 
-      <time title="Created: 2025-08-14 00:17:51" itemprop="dateCreated datePublished" datetime="2025-08-14T00:17:51+08:00">2025-08-14</time>
-    </span>
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar-check"></i>
-      </span>
-      <span class="post-meta-item-text">Edited on</span>
-      <time title="Modified: 2025-11-22 22:35:32" itemprop="dateModified" datetime="2025-11-22T22:35:32+08:00">2025-11-22</time>
+      <time title="Created: 2025-12-13 17:00:02 / Modified: 18:08:35" itemprop="dateCreated datePublished" datetime="2025-12-13T17:00:02+08:00">2025-12-13</time>
     </span>
 
   
@@ -252,20 +251,19 @@
     
     
     
-    <div class="post-body" itemprop="articleBody"><p>Welcome to <a target="_blank" rel="noopener" href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a target="_blank" rel="noopener" href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a target="_blank" rel="noopener" href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a target="_blank" rel="noopener" href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
+    <div class="post-body" itemprop="articleBody"><p>模块，其数据组织形式上是ELF格式的。主要包括ELF header, 若干sections和section header table.<br><img src="/image.png" alt="alt text"></p>
+<h2 id="模块的加载过程"><a href="#模块的加载过程" class="headerlink" title="模块的加载过程"></a>模块的加载过程</h2><p>总的来说，加载模块时，例如使用insmod。其首先利用文件系统的接口将模块读取到用户空间中的一段内存中，然后通过系统调用<code>sys_init_module</code>让内核来处理模块加载的流程。</p>
+<h3 id="sys-init-module"><a href="#sys-init-module" class="headerlink" title="sys_init_module"></a>sys_init_module</h3><h4 id="step1-调用load-module加载模块"><a href="#step1-调用load-module加载模块" class="headerlink" title="step1: 调用load_module加载模块"></a>step1: 调用load_module加载模块</h4><p>load_module会在内核中用vmalloc分配一块地址空间，然后将模块数据从用户空间copy到内核空间 （HDR视图）。<br>load_module找到section名称字符串表和符号名称字符串表。<br>遍历section hdr table中的所有entry，计算sh_addr.<br>初始化struct module类型的遍历mod.<br>sections会被分为两类：CORE和INIT，并为这两类section分配内存空间。  </p>
+<h4 id="step2-加载后的处理"><a href="#step2-加载后的处理" class="headerlink" title="step2: 加载后的处理"></a>step2: 加载后的处理</h4><p>调用模块的初始化函数：mod中init函数指针指向模块源码中的初始化函数。<br>初始化成功后释放不用的section （init, core)占用的内存，加载成功后释放HDR视图所占用的内存。</p>
+<h2 id="模块如何导出自身的函数-变量"><a href="#模块如何导出自身的函数-变量" class="headerlink" title="模块如何导出自身的函数&#x2F;变量"></a>模块如何导出自身的函数&#x2F;变量</h2><blockquote>
+<p>通过宏EXPORT_SYMBOL、EXPORT_SYMBOL_GPL和EXPORT_SYMBOL_FUTURE。内核模块会把导出的符号分别放到“__ksymtab”​、​“__ksymtab_gpl”和“__ksymtab_gpl_future”section中。如果一个内核模块向外界导出了自己的符号，那么将由模块的编译工具链负责生成这些导出符号section，而且这些section都带有SHF_ALLOC标志，所以在模块加载过程中会被搬移到CORE section区域中。如果模块没有向外界导出任何符号，那么在模块的ELF文件中，将不会产生这些section。</p>
+</blockquote>
+<p>内核需要管理模块导出的符号，使得其他模块能够使用这些符号。用find_symbol查找这些section在CORE中的位置，并记录在mod变量中。方便后续查找。</p>
+<h2 id="模块的参数传递"><a href="#模块的参数传递" class="headerlink" title="模块的参数传递"></a>模块的参数传递</h2><p>核心结构体struct kernel_param</p>
+<h2 id="模块依赖关系"><a href="#模块依赖关系" class="headerlink" title="模块依赖关系"></a>模块依赖关系</h2><p>两个链表：source_list和target_list</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&lt;include/linux/<span class="keyword">module</span>.h&gt;</span><br><span class="line"><span class="meta">#<span class="keyword">ifdef</span> CONFIG_MODULE_UNLOAD</span></span><br><span class="line">    <span class="comment">/* What modules depend on me? */</span></span><br><span class="line">    <span class="keyword">struct</span> <span class="title class_">list_head</span> source_list;</span><br><span class="line">    <span class="comment">/* What modules do I depend on? */</span></span><br><span class="line">    <span class="keyword">struct</span> <span class="title class_">list_head</span> target_list;</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br></pre></td></tr></table></figure>
 
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/writing.html">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/server.html">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/generating.html">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
-
+<h2 id="模块版本控制"><a href="#模块版本控制" class="headerlink" title="模块版本控制"></a>模块版本控制</h2>
     </div>
 
     
@@ -273,16 +271,21 @@
     
 
     <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Linux/" rel="tag"># Linux</a>
+              <a href="/tags/Driver/" rel="tag"># Driver</a>
+              <a href="/tags/Kernel/" rel="tag"># Kernel</a>
+          </div>
 
         
 
           <div class="post-nav">
             <div class="post-nav-item">
+                <a href="/2025/12/10/struct-pack/" rel="prev" title="结构体对齐策略">
+                  <i class="fa fa-angle-left"></i> 结构体对齐策略
+                </a>
             </div>
             <div class="post-nav-item">
-                <a href="/2025/08/15/%E7%94%A8Hexo-github-pages%E6%90%AD%E5%BB%BA%E4%B8%80%E4%B8%AA%E5%AE%8C%E5%85%A8%E5%85%8D%E8%B4%B9%E7%9A%84%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2/" rel="next" title="用Hexo &amp; github pages搭建一个完全免费的个人博客">
-                  用Hexo & github pages搭建一个完全免费的个人博客 <i class="fa fa-angle-right"></i>
-                </a>
             </div>
           </div>
     </footer>
@@ -334,7 +337,7 @@
 </noscript>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.8.0/gitalk.css" integrity="sha256-AJnUHL7dBv6PGaeyPQJcgQPDjt/Hn/PvYZde1iqfp8U=" crossorigin="anonymous">
 
-<script class="next-config" data-name="gitalk" type="application/json">{"enable":true,"github_id":null,"repo":null,"client_id":null,"client_secret":null,"admin_user":null,"distraction_free_mode":true,"proxy":"https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token","language":null,"body":null,"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.8.0/gitalk.min.js","integrity":"sha256-MVK9MGD/XJaGyIghSVrONSnoXoGh3IFxLw0zfvzpxR4="},"path_md5":"51ffdcb05325cac87501ecb988b641c5"}</script>
+<script class="next-config" data-name="gitalk" type="application/json">{"enable":true,"github_id":null,"repo":null,"client_id":null,"client_secret":null,"admin_user":null,"distraction_free_mode":true,"proxy":"https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token","language":null,"body":null,"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/gitalk/1.8.0/gitalk.min.js","integrity":"sha256-MVK9MGD/XJaGyIghSVrONSnoXoGh3IFxLw0zfvzpxR4="},"path_md5":"2d1bd2da3881c3fa97640ce398e3cde9"}</script>
 <script src="/js/third-party/comments/gitalk.js" defer></script>
 
 </body>
