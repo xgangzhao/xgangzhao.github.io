@@ -228,7 +228,7 @@
       <span class="post-meta-item-text">Posted on</span>
       
 
-      <time title="Created: 2025-12-15 13:24:11 / Modified: 13:37:17" itemprop="dateCreated datePublished" datetime="2025-12-15T13:24:11+08:00">2025-12-15</time>
+      <time title="Created: 2025-12-15 13:24:11 / Modified: 13:43:23" itemprop="dateCreated datePublished" datetime="2025-12-15T13:24:11+08:00">2025-12-15</time>
     </span>
 
   
@@ -264,7 +264,9 @@
 </blockquote>
 <p>所以我现在习惯，<strong>先在脑子里画一张分层图</strong>。</p>
 <h3 id="块设备-I-O-的整体分层（自顶向下）"><a href="#块设备-I-O-的整体分层（自顶向下）" class="headerlink" title="块设备 I&#x2F;O 的整体分层（自顶向下）"></a>块设备 I&#x2F;O 的整体分层（自顶向下）</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">┌────────────────────────────┐</span><br><span class="line">│        用户空间              │</span><br><span class="line">│  cp / dd / mount / fsck    │</span><br><span class="line">└────────────┬───────────────┘</span><br><span class="line">             │ read/write</span><br><span class="line">┌────────────▼───────────────┐</span><br><span class="line">│        VFS 层               │</span><br><span class="line">│  struct file / inode       │</span><br><span class="line">└────────────┬───────────────┘</span><br><span class="line">             │</span><br><span class="line">┌────────────▼───────────────┐</span><br><span class="line">│        文件系统层            │</span><br><span class="line">│  ext4 / xfs / f2fs         │</span><br><span class="line">└────────────┬───────────────┘</span><br><span class="line">             │ page cache</span><br><span class="line">┌────────────▼───────────────┐</span><br><span class="line">│        通用块层              │</span><br><span class="line">│  bio / request / elevator  │</span><br><span class="line">│  I/O 合并、调度、重排         │</span><br><span class="line">└────────────┬───────────────┘</span><br><span class="line">             │</span><br><span class="line">┌────────────▼───────────────┐</span><br><span class="line">│     块设备驱动（我写的）       │</span><br><span class="line">│  make_request / queue_rq   │</span><br><span class="line">└────────────┬───────────────┘</span><br><span class="line">             │</span><br><span class="line">┌────────────▼───────────────┐</span><br><span class="line">│      硬件 / 存储介质        │</span><br><span class="line">│  eMMC / SSD / NVMe / RAM   │</span><br><span class="line">└────────────────────────────┘</span><br></pre></td></tr></table></figure>
-<h2 id="块设备驱动，只负责最下面这一层。"><a href="#块设备驱动，只负责最下面这一层。" class="headerlink" title="块设备驱动，只负责最下面这一层。"></a><strong>块设备驱动，只负责最下面这一层</strong>。</h2><h3 id="为什么块设备驱动没有-read-write？"><a href="#为什么块设备驱动没有-read-write？" class="headerlink" title="为什么块设备驱动没有 read&#x2F;write？"></a>为什么块设备驱动没有 read&#x2F;write？</h3><p>这是我最早困惑的问题之一。</p>
+
+<p><strong>块设备驱动，只负责最下面这一层</strong></p>
+<h3 id="为什么块设备驱动没有-read-write？"><a href="#为什么块设备驱动没有-read-write？" class="headerlink" title="为什么块设备驱动没有 read&#x2F;write？"></a>为什么块设备驱动没有 read&#x2F;write？</h3><p>这是我最早困惑的问题之一。</p>
 <p>字符设备是这样的：</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">用户 read()</span><br><span class="line">  → 驱动 read()</span><br></pre></td></tr></table></figure>
 
@@ -280,9 +282,9 @@
 <li><code>struct block_device_operations</code> 里没有 <code>.read / .write</code></li>
 <li>真正的数据路径在 <code>bio</code> &#x2F; <code>request</code></li>
 </ul>
-<hr>
-<h2 id="通用块层：内核帮我做了什么？"><a href="#通用块层：内核帮我做了什么？" class="headerlink" title="通用块层：内核帮我做了什么？"></a>通用块层：内核帮我做了什么？</h2><p>在我真正处理 I&#x2F;O 之前，<strong>通用块层已经干了大量工作</strong>。</p>
-<h3 id="它主要负责："><a href="#它主要负责：" class="headerlink" title="它主要负责："></a>它主要负责：</h3><ul>
+<h3 id="通用块层：内核帮我做了什么？"><a href="#通用块层：内核帮我做了什么？" class="headerlink" title="通用块层：内核帮我做了什么？"></a>通用块层：内核帮我做了什么？</h3><p>在我真正处理 I&#x2F;O 之前，<strong>通用块层已经干了大量工作</strong>。</p>
+<p>它主要负责：</p>
+<ul>
 <li>把文件 I&#x2F;O 转换成块 I&#x2F;O</li>
 <li>页缓存（page cache）</li>
 <li>bio 合并（I&#x2F;O 聚合）</li>
@@ -290,8 +292,7 @@
 <li>顺序优化、重排</li>
 </ul>
 <p>我写的驱动 <strong>完全不用关心这些</strong>。</p>
-<hr>
-<h3 id="1️⃣-bio：块-I-O-的最小描述单元"><a href="#1️⃣-bio：块-I-O-的最小描述单元" class="headerlink" title="1️⃣ bio：块 I&#x2F;O 的最小描述单元"></a>1️⃣ bio：块 I&#x2F;O 的最小描述单元</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">bio</span> &#123;</span></span><br><span class="line">    <span class="type">sector_t</span>        bi_sector;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">bio_vec</span> *<span class="title">bi_io_vec</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">bvec_iter</span> <span class="title">bi_iter</span>;</span></span><br><span class="line">    ...</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<h4 id="1️⃣-bio：块-I-O-的最小描述单元"><a href="#1️⃣-bio：块-I-O-的最小描述单元" class="headerlink" title="1️⃣ bio：块 I&#x2F;O 的最小描述单元"></a>1️⃣ bio：块 I&#x2F;O 的最小描述单元</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">bio</span> &#123;</span></span><br><span class="line">    <span class="type">sector_t</span>        bi_sector;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">bio_vec</span> *<span class="title">bi_io_vec</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">bvec_iter</span> <span class="title">bi_iter</span>;</span></span><br><span class="line">    ...</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
 
 <p>我现在的理解是：</p>
 <blockquote>
@@ -304,7 +305,7 @@
 <li>但逻辑地址（sector）是连续的</li>
 </ul>
 <hr>
-<h3 id="2️⃣-request：多个-bio-的集合"><a href="#2️⃣-request：多个-bio-的集合" class="headerlink" title="2️⃣ request：多个 bio 的集合"></a>2️⃣ request：多个 bio 的集合</h3><p>在 <code>blk-mq</code> 之前：</p>
+<h4 id="2️⃣-request：多个-bio-的集合"><a href="#2️⃣-request：多个-bio-的集合" class="headerlink" title="2️⃣ request：多个 bio 的集合"></a>2️⃣ request：多个 bio 的集合</h4><p>在 <code>blk-mq</code> 之前：</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">多个 bio</span><br><span class="line">   ↓</span><br><span class="line">合并成 request</span><br><span class="line">   ↓</span><br><span class="line">送给驱动</span><br></pre></td></tr></table></figure>
 
 <p>在 <code>blk-mq</code> 之后：</p>
@@ -312,8 +313,7 @@
 <li>request 仍然存在</li>
 <li>但调度和分发更并行</li>
 </ul>
-<hr>
-<h2 id="块设备驱动在分层中的位置"><a href="#块设备驱动在分层中的位置" class="headerlink" title="块设备驱动在分层中的位置"></a>块设备驱动在分层中的位置</h2><p>现在再回头看块设备驱动，其实非常清晰：</p>
+<h3 id="块设备驱动在分层中的位置"><a href="#块设备驱动在分层中的位置" class="headerlink" title="块设备驱动在分层中的位置"></a>块设备驱动在分层中的位置</h3><p>现在再回头看块设备驱动，其实非常清晰：</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">通用块层</span><br><span class="line">   │</span><br><span class="line">   │  bio / request</span><br><span class="line">   ▼</span><br><span class="line">块设备驱动</span><br><span class="line">   │</span><br><span class="line">   │  sector → 物理地址</span><br><span class="line">   ▼</span><br><span class="line">硬件操作</span><br></pre></td></tr></table></figure>
 
 <p>我在驱动里要做的事，本质只有三步：</p>
@@ -338,7 +338,7 @@
 </li>
 </ol>
 <hr>
-<h2 id="两种常见的块设备驱动模型"><a href="#两种常见的块设备驱动模型" class="headerlink" title="两种常见的块设备驱动模型"></a>两种常见的块设备驱动模型</h2><h3 id="1️⃣-make-request-模型（简单、好理解）"><a href="#1️⃣-make-request-模型（简单、好理解）" class="headerlink" title="1️⃣ make_request 模型（简单、好理解）"></a>1️⃣ make_request 模型（简单、好理解）</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">bio</span><br><span class="line"> ↓</span><br><span class="line">make_request_fn</span><br><span class="line"> ↓</span><br><span class="line">设备读写</span><br><span class="line"> ↓</span><br><span class="line">bio_endio</span><br></pre></td></tr></table></figure>
+<h3 id="两种常见的块设备驱动模型"><a href="#两种常见的块设备驱动模型" class="headerlink" title="两种常见的块设备驱动模型"></a>两种常见的块设备驱动模型</h3><h4 id="1️⃣-make-request-模型（简单、好理解）"><a href="#1️⃣-make-request-模型（简单、好理解）" class="headerlink" title="1️⃣ make_request 模型（简单、好理解）"></a>1️⃣ make_request 模型（简单、好理解）</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">bio</span><br><span class="line"> ↓</span><br><span class="line">make_request_fn</span><br><span class="line"> ↓</span><br><span class="line">设备读写</span><br><span class="line"> ↓</span><br><span class="line">bio_endio</span><br></pre></td></tr></table></figure>
 
 <p>特点：</p>
 <ul>
@@ -355,7 +355,7 @@
 </li>
 </ul>
 <hr>
-<h3 id="2️⃣-blk-mq-模型（现代、高性能）"><a href="#2️⃣-blk-mq-模型（现代、高性能）" class="headerlink" title="2️⃣ blk-mq 模型（现代、高性能）"></a>2️⃣ blk-mq 模型（现代、高性能）</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">bio</span><br><span class="line"> ↓</span><br><span class="line">request</span><br><span class="line"> ↓</span><br><span class="line">blk_mq_ops.queue_rq</span><br><span class="line"> ↓</span><br><span class="line">设备提交</span><br><span class="line"> ↓</span><br><span class="line">blk_mq_end_request</span><br></pre></td></tr></table></figure>
+<h4 id="2️⃣-blk-mq-模型（现代、高性能）"><a href="#2️⃣-blk-mq-模型（现代、高性能）" class="headerlink" title="2️⃣ blk-mq 模型（现代、高性能）"></a>2️⃣ blk-mq 模型（现代、高性能）</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">bio</span><br><span class="line"> ↓</span><br><span class="line">request</span><br><span class="line"> ↓</span><br><span class="line">blk_mq_ops.queue_rq</span><br><span class="line"> ↓</span><br><span class="line">设备提交</span><br><span class="line"> ↓</span><br><span class="line">blk_mq_end_request</span><br></pre></td></tr></table></figure>
 
 <p>特点：</p>
 <ul>
@@ -364,14 +364,14 @@
 <li>几乎所有新存储设备都用它</li>
 </ul>
 <hr>
-<h2 id="从“分层”角度再看-gendisk-queue"><a href="#从“分层”角度再看-gendisk-queue" class="headerlink" title="从“分层”角度再看 gendisk &#x2F; queue"></a>从“分层”角度再看 gendisk &#x2F; queue</h2><p>现在我再看这几个结构，就非常顺了：</p>
-<h3 id="gendisk-——-“设备对外的门面”"><a href="#gendisk-——-“设备对外的门面”" class="headerlink" title="gendisk —— “设备对外的门面”"></a>gendisk —— “设备对外的门面”</h3><ul>
+<h3 id="从“分层”角度再看-gendisk-queue"><a href="#从“分层”角度再看-gendisk-queue" class="headerlink" title="从“分层”角度再看 gendisk &#x2F; queue"></a>从“分层”角度再看 gendisk &#x2F; queue</h3><p>现在我再看这几个结构，就非常顺了：</p>
+<h4 id="gendisk-——-“设备对外的门面”"><a href="#gendisk-——-“设备对外的门面”" class="headerlink" title="gendisk —— “设备对外的门面”"></a>gendisk —— “设备对外的门面”</h4><ul>
 <li>设备名</li>
 <li>容量</li>
 <li>主次设备号</li>
 <li>和文件系统打交道</li>
 </ul>
-<h3 id="request-queue-——-“I-O-入口”"><a href="#request-queue-——-“I-O-入口”" class="headerlink" title="request_queue —— “I&#x2F;O 入口”"></a>request_queue —— “I&#x2F;O 入口”</h3><ul>
+<h4 id="request-queue-——-“I-O-入口”"><a href="#request-queue-——-“I-O-入口”" class="headerlink" title="request_queue —— “I&#x2F;O 入口”"></a>request_queue —— “I&#x2F;O 入口”</h4><ul>
 <li>通用块层 → 驱动的接口</li>
 <li>I&#x2F;O 在这里排队、下发</li>
 </ul>
