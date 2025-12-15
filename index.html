@@ -228,7 +228,7 @@
       <span class="post-meta-item-text">Posted on</span>
       
 
-      <time title="Created: 2025-12-15 12:41:48 / Modified: 13:05:25" itemprop="dateCreated datePublished" datetime="2025-12-15T12:41:48+08:00">2025-12-15</time>
+      <time title="Created: 2025-12-15 12:41:48 / Modified: 13:08:35" itemprop="dateCreated datePublished" datetime="2025-12-15T12:41:48+08:00">2025-12-15</time>
     </span>
 
   
@@ -242,19 +242,30 @@
     
     <div class="post-body" itemprop="articleBody">
           <blockquote>
-<p>最近在系统地回顾 Linux 设备驱动基础，这一篇主要是字符设备驱动。一边看内核源码，一边把思路和常用 API 重新梳理了一遍，整理成这份偏「学习笔记 &#x2F; 博客风格」的总结，方便以后自己翻</p>
+<p>最近在系统地回顾 Linux 设备驱动基础，这一篇主要是字符设备驱动。一边看内核源码，一边把思路和常用 API 重新梳理了一遍，整理一下，方便以后自己翻</p>
 </blockquote>
-<h2 id="我理解的字符设备是什么"><a href="#我理解的字符设备是什么" class="headerlink" title="我理解的字符设备是什么"></a>我理解的字符设备是什么</h2><p>在 Linux 中，字符设备（Character Device）是一类按字节流进行访问的设备。它的典型特征是：<br>不经过 page cache<br>面向字节而不是块<br>用户态直接通过 open &#x2F; read &#x2F; write &#x2F; ioctl 访问  </p>
+<h2 id="我理解的字符设备是什么"><a href="#我理解的字符设备是什么" class="headerlink" title="我理解的字符设备是什么"></a>我理解的字符设备是什么</h2><p>在 Linux 中，字符设备（Character Device）是一类按字节流进行访问的设备。它的典型特征是：  </p>
+<pre><code>不经过 page cache  
+面向字节而不是块  
+用户态直接通过 open / read / write / ioctl 访问  
+</code></pre>
 <p>我在实际接触到的字符设备基本包括：<br>GPIO<br>I2C &#x2F; SPI<br>UART<br>watchdog<br>各种控制类外设  </p>
 <p>内核里的访问路径大致如下：</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">用户态</span><br><span class="line"> └─ open / read / write / ioctl</span><br><span class="line">    └─ VFS</span><br><span class="line">       └─ cdev（字符设备层）</span><br><span class="line">          └─ 具体驱动</span><br></pre></td></tr></table></figure>
 
 <p>所以从实现角度看，一句话就能概括：</p>
 <p>字符设备 &#x3D; cdev + file_operations + 设备节点</p>
-<h2 id="整体编写流程（先有全局感）"><a href="#整体编写流程（先有全局感）" class="headerlink" title="整体编写流程（先有全局感）"></a>整体编写流程（先有全局感）</h2><p>我自己在写字符设备驱动时，基本都会沿着下面这条固定主线走：<br>申请设备号（dev_t）<br>初始化并注册 cdev<br>创建 &#x2F;dev 设备节点<br>实现 file_operations<br>处理并发、阻塞、唤醒等问题<br>模块卸载时释放资源  </p>
+<h2 id="整体编写流程（先有全局感）"><a href="#整体编写流程（先有全局感）" class="headerlink" title="整体编写流程（先有全局感）"></a>整体编写流程（先有全局感）</h2><p>我自己在写字符设备驱动时，基本都会沿着下面这条固定主线走： </p>
+<pre><code>申请设备号（dev_t）   
+初始化并注册 cdev
+创建 /dev 设备节点    
+实现 file_operations   
+处理并发、阻塞、唤醒等问题  
+模块卸载时释放资源  
+</code></pre>
 <p>字符设备的好处就在于：流程非常稳定，套路几乎不变。下面按步骤展开。</p>
 <h3 id="申请设备号（dev-t）"><a href="#申请设备号（dev-t）" class="headerlink" title="申请设备号（dev_t）"></a>申请设备号（dev_t）</h3><p>字符设备通过 主设备号 + 次设备号 来唯一标识。</p>
-<h4 id="动态申请（我最常用的方式）"><a href="#动态申请（我最常用的方式）" class="headerlink" title="动态申请（我最常用的方式）"></a>动态申请（我最常用的方式）</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">dev_t</span> dev;</span><br><span class="line"><span class="built_in">alloc_chrdev_region</span>(&amp;dev, <span class="number">0</span>, <span class="number">1</span>, <span class="string">&quot;mychardev&quot;</span>);</span><br></pre></td></tr></table></figure>
+<h4 id="动态申请"><a href="#动态申请" class="headerlink" title="动态申请"></a>动态申请</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">dev_t</span> dev;</span><br><span class="line"><span class="built_in">alloc_chrdev_region</span>(&amp;dev, <span class="number">0</span>, <span class="number">1</span>, <span class="string">&quot;mychardev&quot;</span>);</span><br></pre></td></tr></table></figure>
 
 <p>参数含义：<br>dev：返回的设备号（包含 major&#x2F;minor）<br>0：起始 minor<br>1：设备个数  </p>
 <p>一般情况下，我都会用动态申请，避免和系统里已有的设备号冲突。</p>
@@ -290,7 +301,11 @@
 <p>ioctl 我一般用来做：</p>
 <p>参数配置<br>模式切换<br>硬件控制类操作  </p>
 <h3 id="阻塞、唤醒与并发控制"><a href="#阻塞、唤醒与并发控制" class="headerlink" title="阻塞、唤醒与并发控制"></a>阻塞、唤醒与并发控制</h3><p>字符设备很容易遇到阻塞 IO 的需求，这块在实际项目里非常常见。</p>
-<h4 id="常用同步手段（我的经验总结）"><a href="#常用同步手段（我的经验总结）" class="headerlink" title="常用同步手段（我的经验总结）"></a>常用同步手段（我的经验总结）</h4><p>进程上下文	mutex<br>中断上下文	spinlock<br>阻塞读写	wait_queue<br>poll&#x2F;select	poll_wait   </p>
+<h4 id="常用同步手段"><a href="#常用同步手段" class="headerlink" title="常用同步手段"></a>常用同步手段</h4><pre><code>进程上下文	mutex   
+中断上下文	spinlock   
+阻塞读写	wait_queue   
+poll/select	poll_wait   
+</code></pre>
 <h5 id="阻塞-read-示例"><a href="#阻塞-read-示例" class="headerlink" title="阻塞 read 示例"></a>阻塞 read 示例</h5><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">wait_event_interruptible</span>(wq, data_ready);</span><br><span class="line"><span class="number">8.3</span> poll 支持</span><br><span class="line"><span class="function"><span class="type">static</span> <span class="type">unsigned</span> <span class="type">int</span> <span class="title">my_poll</span><span class="params">(<span class="keyword">struct</span> file *filp, poll_table *wait)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="built_in">poll_wait</span>(filp, &amp;wq, wait);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (data_ready)</span><br><span class="line">        <span class="keyword">return</span> POLLIN | POLLRDNORM;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <h3 id="模块卸载顺序"><a href="#模块卸载顺序" class="headerlink" title="模块卸载顺序"></a>模块卸载顺序</h3><p>字符设备卸载时，一般严格按下面顺序来：</p>
