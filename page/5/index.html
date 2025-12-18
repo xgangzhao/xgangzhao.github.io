@@ -166,7 +166,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
         <a href="/archives/">
-          <span class="site-state-item-count">19</span>
+          <span class="site-state-item-count">20</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -198,7 +198,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/12/10/struct-pack/">
+    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/12/13/%E6%B7%B1%E5%85%A5Linux%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E7%A8%8B%E5%BA%8F%E5%86%85%E6%A0%B8%E6%9C%BA%E5%88%B6-1-%E5%86%85%E6%A0%B8%E6%A8%A1%E5%9D%97-%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -216,7 +216,7 @@
     </span>
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
-          <a href="/2025/12/10/struct-pack/" class="post-title-link" itemprop="url">结构体对齐策略</a>
+          <a href="/2025/12/13/%E6%B7%B1%E5%85%A5Linux%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E7%A8%8B%E5%BA%8F%E5%86%85%E6%A0%B8%E6%9C%BA%E5%88%B6-1-%E5%86%85%E6%A0%B8%E6%A8%A1%E5%9D%97-%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/" class="post-title-link" itemprop="url">Untitled</a>
         </h2>
 
         <div class="post-meta-container">
@@ -226,9 +226,15 @@
         <i class="far fa-calendar"></i>
       </span>
       <span class="post-meta-item-text">Posted on</span>
-      
 
-      <time title="Created: 2025-12-10 21:52:22 / Modified: 22:00:22" itemprop="dateCreated datePublished" datetime="2025-12-10T21:52:22+08:00">2025-12-10</time>
+      <time title="Created: 2025-12-13 17:00:02" itemprop="dateCreated datePublished" datetime="2025-12-13T17:00:02+08:00">2025-12-13</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-12-15 12:40:13" itemprop="dateModified" datetime="2025-12-15T12:40:13+08:00">2025-12-15</time>
     </span>
 
   
@@ -241,16 +247,19 @@
     
     
     <div class="post-body" itemprop="articleBody">
-          <h2 id="为什么对齐？"><a href="#为什么对齐？" class="headerlink" title="为什么对齐？"></a>为什么对齐？</h2><ul>
-<li>不对齐访问会变慢（某些架构会报错）</li>
-<li>提高总线效率（一次取数据满足更多字节）</li>
-</ul>
-<h2 id="对齐（pack）规则"><a href="#对齐（pack）规则" class="headerlink" title="对齐（pack）规则"></a>对齐（pack）规则</h2><ul>
-<li>成员偏移必须是其对齐值的整数倍；否则编译器插入 Padding</li>
-<li>结构体总大小必须是其“最大成员对齐值”的整数倍；否则末尾插入 Tail Padding</li>
-<li>位域（bit-field）按“底层类型”对齐，不能跨越底层单元边界</li>
-</ul>
+          <p>模块，其数据组织形式上是ELF格式的。主要包括ELF header, 若干sections和section header table.<br><img src="/image.png" alt="alt text"></p>
+<h2 id="模块的加载过程"><a href="#模块的加载过程" class="headerlink" title="模块的加载过程"></a>模块的加载过程</h2><p>总的来说，加载模块时，例如使用insmod。其首先利用文件系统的接口将模块读取到用户空间中的一段内存中，然后通过系统调用<code>sys_init_module</code>让内核来处理模块加载的流程。</p>
+<h3 id="sys-init-module"><a href="#sys-init-module" class="headerlink" title="sys_init_module"></a>sys_init_module</h3><h4 id="step1-调用load-module加载模块"><a href="#step1-调用load-module加载模块" class="headerlink" title="step1: 调用load_module加载模块"></a>step1: 调用load_module加载模块</h4><p>load_module会在内核中用vmalloc分配一块地址空间，然后将模块数据从用户空间copy到内核空间 （HDR视图）。<br>load_module找到section名称字符串表和符号名称字符串表。<br>遍历section hdr table中的所有entry，计算sh_addr.<br>初始化struct module类型的遍历mod.<br>sections会被分为两类：CORE和INIT，并为这两类section分配内存空间。  </p>
+<h4 id="step2-加载后的处理"><a href="#step2-加载后的处理" class="headerlink" title="step2: 加载后的处理"></a>step2: 加载后的处理</h4><p>调用模块的初始化函数：mod中init函数指针指向模块源码中的初始化函数。<br>初始化成功后释放不用的section （init, core)占用的内存，加载成功后释放HDR视图所占用的内存。</p>
+<h2 id="模块如何导出自身的函数-变量"><a href="#模块如何导出自身的函数-变量" class="headerlink" title="模块如何导出自身的函数&#x2F;变量"></a>模块如何导出自身的函数&#x2F;变量</h2><blockquote>
+<p>通过宏EXPORT_SYMBOL、EXPORT_SYMBOL_GPL和EXPORT_SYMBOL_FUTURE。内核模块会把导出的符号分别放到“__ksymtab”​、​“__ksymtab_gpl”和“__ksymtab_gpl_future”section中。如果一个内核模块向外界导出了自己的符号，那么将由模块的编译工具链负责生成这些导出符号section，而且这些section都带有SHF_ALLOC标志，所以在模块加载过程中会被搬移到CORE section区域中。如果模块没有向外界导出任何符号，那么在模块的ELF文件中，将不会产生这些section。</p>
+</blockquote>
+<p>内核需要管理模块导出的符号，使得其他模块能够使用这些符号。用find_symbol查找这些section在CORE中的位置，并记录在mod变量中。方便后续查找。</p>
+<h2 id="模块的参数传递"><a href="#模块的参数传递" class="headerlink" title="模块的参数传递"></a>模块的参数传递</h2><p>核心结构体struct kernel_param</p>
+<h2 id="模块依赖关系"><a href="#模块依赖关系" class="headerlink" title="模块依赖关系"></a>模块依赖关系</h2><p>两个链表：source_list和target_list</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&lt;include/linux/<span class="keyword">module</span>.h&gt;</span><br><span class="line"><span class="meta">#<span class="keyword">ifdef</span> CONFIG_MODULE_UNLOAD</span></span><br><span class="line">    <span class="comment">/* What modules depend on me? */</span></span><br><span class="line">    <span class="keyword">struct</span> <span class="title class_">list_head</span> source_list;</span><br><span class="line">    <span class="comment">/* What modules do I depend on? */</span></span><br><span class="line">    <span class="keyword">struct</span> <span class="title class_">list_head</span> target_list;</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br></pre></td></tr></table></figure>
 
+<h2 id="模块版本控制"><a href="#模块版本控制" class="headerlink" title="模块版本控制"></a>模块版本控制</h2>
       
     </div>
 
@@ -269,7 +278,7 @@
 
 
   <nav class="pagination">
-    <a class="extend prev" rel="prev" title="Previous page" aria-label="Previous page" href="/page/4/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/4/">4</a><span class="page-number current">5</span><a class="page-number" href="/page/6/">6</a><span class="space">&hellip;</span><a class="page-number" href="/page/19/">19</a><a class="extend next" rel="next" title="Next page" aria-label="Next page" href="/page/6/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" title="Previous page" aria-label="Previous page" href="/page/4/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/4/">4</a><span class="page-number current">5</span><a class="page-number" href="/page/6/">6</a><span class="space">&hellip;</span><a class="page-number" href="/page/20/">20</a><a class="extend next" rel="next" title="Next page" aria-label="Next page" href="/page/6/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 </div>

@@ -166,7 +166,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
         <a href="/archives/">
-          <span class="site-state-item-count">19</span>
+          <span class="site-state-item-count">20</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -198,7 +198,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/12/15/Linux%E5%AD%97%E7%AC%A6%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8/">
+    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/12/15/Linux%E5%9D%97%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -216,7 +216,7 @@
     </span>
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
-          <a href="/2025/12/15/Linux%E5%AD%97%E7%AC%A6%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8/" class="post-title-link" itemprop="url">Linux字符设备驱动</a>
+          <a href="/2025/12/15/Linux%E5%9D%97%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8/" class="post-title-link" itemprop="url">Linux块设备驱动</a>
         </h2>
 
         <div class="post-meta-container">
@@ -228,7 +228,7 @@
       <span class="post-meta-item-text">Posted on</span>
       
 
-      <time title="Created: 2025-12-15 12:41:48 / Modified: 13:15:19" itemprop="dateCreated datePublished" datetime="2025-12-15T12:41:48+08:00">2025-12-15</time>
+      <time title="Created: 2025-12-15 13:24:11 / Modified: 13:43:23" itemprop="dateCreated datePublished" datetime="2025-12-15T13:24:11+08:00">2025-12-15</time>
     </span>
 
   
@@ -242,91 +242,306 @@
     
     <div class="post-body" itemprop="articleBody">
           <blockquote>
-<p>最近在系统地回顾 Linux 设备驱动基础，这一篇主要是字符设备驱动。一边看内核源码，一边把思路和常用 API 重新梳理了一遍，整理一下，方便以后自己翻</p>
+<p>最近在啃 Linux 块设备驱动，说实话，一开始比字符设备要懵不少。字符设备是“read&#x2F;write → 我来拷数据”，而块设备背后是一整套 I&#x2F;O 调度、请求队列、bio、request 的体系。</p>
 </blockquote>
-<h2 id="我理解的字符设备是什么"><a href="#我理解的字符设备是什么" class="headerlink" title="我理解的字符设备是什么"></a>我理解的字符设备是什么</h2><p>在 Linux 中，字符设备（Character Device）是一类按字节流进行访问的设备。它的典型特征是：  </p>
-<pre><code>不经过 page cache  
-面向字节而不是块  
-用户态直接通过 open / read / write / ioctl 访问  
-</code></pre>
-<p>我在实际接触到的字符设备基本包括：<br>GPIO<br>I2C &#x2F; SPI<br>UART<br>watchdog<br>各种控制类外设  </p>
-<p>内核里的访问路径大致如下：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">用户态</span><br><span class="line"> └─ open / read / write / ioctl</span><br><span class="line">    └─ VFS</span><br><span class="line">       └─ cdev（字符设备层）</span><br><span class="line">          └─ 具体驱动</span><br></pre></td></tr></table></figure>
+<hr>
+<h2 id="整体思路"><a href="#整体思路" class="headerlink" title="整体思路"></a>整体思路</h2><p><strong>块设备驱动 ≠ 自己实现 read&#x2F;write</strong></p>
+<p>块设备驱动的核心是：</p>
+<blockquote>
+<p><strong>把上层文件系统的块 I&#x2F;O 请求，翻译成对底层存储介质的读写操作</strong></p>
+</blockquote>
+<p>文件系统、页缓存、I&#x2F;O 合并、调度，这些内核都帮你做好了，你只需要：</p>
+<ul>
+<li>接住请求</li>
+<li>处理请求</li>
+<li>告诉内核：我搞定了（或失败了）</li>
+</ul>
+<hr>
+<h2 id="开始之前-先搞清楚Linux-块设备的整体分层框架"><a href="#开始之前-先搞清楚Linux-块设备的整体分层框架" class="headerlink" title="开始之前 先搞清楚Linux 块设备的整体分层框架"></a>开始之前 先搞清楚Linux 块设备的整体分层框架</h2><p>在真正写块设备驱动之前，我吃过一个很大的亏：<br><strong>直接看代码，看 <code>bio</code>、<code>request</code>、<code>make_request_fn</code>，越看越乱。</strong></p>
+<p>后来才意识到一个问题：</p>
+<blockquote>
+<p><strong>块设备驱动不是“一个层”，而是“整个 I&#x2F;O 栈的最底层一环”。</strong></p>
+</blockquote>
+<p>所以我现在习惯，<strong>先在脑子里画一张分层图</strong>。</p>
+<h3 id="块设备-I-O-的整体分层（自顶向下）"><a href="#块设备-I-O-的整体分层（自顶向下）" class="headerlink" title="块设备 I&#x2F;O 的整体分层（自顶向下）"></a>块设备 I&#x2F;O 的整体分层（自顶向下）</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">┌────────────────────────────┐</span><br><span class="line">│        用户空间              │</span><br><span class="line">│  cp / dd / mount / fsck    │</span><br><span class="line">└────────────┬───────────────┘</span><br><span class="line">             │ read/write</span><br><span class="line">┌────────────▼───────────────┐</span><br><span class="line">│        VFS 层               │</span><br><span class="line">│  struct file / inode       │</span><br><span class="line">└────────────┬───────────────┘</span><br><span class="line">             │</span><br><span class="line">┌────────────▼───────────────┐</span><br><span class="line">│        文件系统层            │</span><br><span class="line">│  ext4 / xfs / f2fs         │</span><br><span class="line">└────────────┬───────────────┘</span><br><span class="line">             │ page cache</span><br><span class="line">┌────────────▼───────────────┐</span><br><span class="line">│        通用块层              │</span><br><span class="line">│  bio / request / elevator  │</span><br><span class="line">│  I/O 合并、调度、重排         │</span><br><span class="line">└────────────┬───────────────┘</span><br><span class="line">             │</span><br><span class="line">┌────────────▼───────────────┐</span><br><span class="line">│     块设备驱动（我写的）       │</span><br><span class="line">│  make_request / queue_rq   │</span><br><span class="line">└────────────┬───────────────┘</span><br><span class="line">             │</span><br><span class="line">┌────────────▼───────────────┐</span><br><span class="line">│      硬件 / 存储介质        │</span><br><span class="line">│  eMMC / SSD / NVMe / RAM   │</span><br><span class="line">└────────────────────────────┘</span><br></pre></td></tr></table></figure>
 
-<p>所以从实现角度看，一句话就能概括：</p>
-<p>字符设备 &#x3D; cdev + file_operations + 设备节点</p>
-<h2 id="整体编写流程（先有全局感）"><a href="#整体编写流程（先有全局感）" class="headerlink" title="整体编写流程（先有全局感）"></a>整体编写流程（先有全局感）</h2><p>我自己在写字符设备驱动时，基本都会沿着下面这条固定主线走： </p>
-<pre><code>申请设备号（dev_t）   
-初始化并注册 cdev
-创建 /dev 设备节点    
-实现 file_operations   
-处理并发、阻塞、唤醒等问题  
-模块卸载时释放资源  
-</code></pre>
-<p>字符设备的好处就在于：流程非常稳定，套路几乎不变。下面按步骤展开。</p>
-<h3 id="申请设备号（dev-t）"><a href="#申请设备号（dev-t）" class="headerlink" title="申请设备号（dev_t）"></a>申请设备号（dev_t）</h3><p>字符设备通过 主设备号 + 次设备号 来唯一标识。</p>
-<h4 id="动态申请"><a href="#动态申请" class="headerlink" title="动态申请"></a>动态申请</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">dev_t</span> dev;</span><br><span class="line"><span class="built_in">alloc_chrdev_region</span>(&amp;dev, <span class="number">0</span>, <span class="number">1</span>, <span class="string">&quot;mychardev&quot;</span>);</span><br></pre></td></tr></table></figure>
+<p><strong>块设备驱动，只负责最下面这一层</strong></p>
+<h3 id="为什么块设备驱动没有-read-write？"><a href="#为什么块设备驱动没有-read-write？" class="headerlink" title="为什么块设备驱动没有 read&#x2F;write？"></a>为什么块设备驱动没有 read&#x2F;write？</h3><p>这是我最早困惑的问题之一。</p>
+<p>字符设备是这样的：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">用户 read()</span><br><span class="line">  → 驱动 read()</span><br></pre></td></tr></table></figure>
 
-<p>参数含义：<br>dev：返回的设备号（包含 major&#x2F;minor）<br>0：起始 minor<br>1：设备个数  </p>
-<p>一般情况下，我都会用动态申请，避免和系统里已有的设备号冲突。</p>
-<h4 id="卸载时释放"><a href="#卸载时释放" class="headerlink" title="卸载时释放"></a>卸载时释放</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">unregister_chrdev_region</span>(dev, <span class="number">1</span>);</span><br></pre></td></tr></table></figure>
+<p>但块设备是：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">用户 read()</span><br><span class="line">  → VFS</span><br><span class="line">    → 文件系统</span><br><span class="line">      → page cache</span><br><span class="line">        → bio</span><br><span class="line">          → 块设备驱动</span><br></pre></td></tr></table></figure>
 
-<h3 id="初始化并注册-cdev"><a href="#初始化并注册-cdev" class="headerlink" title="初始化并注册 cdev"></a>初始化并注册 cdev</h3><p>cdev 是字符设备在内核中的核心对象，它负责把「设备号」和「操作函数」真正绑定起来。</p>
-<h4 id="定义并初始化"><a href="#定义并初始化" class="headerlink" title="定义并初始化"></a>定义并初始化</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">cdev</span> my_cdev;</span><br><span class="line"><span class="built_in">cdev_init</span>(&amp;my_cdev, &amp;my_fops);</span><br><span class="line">my_cdev.owner = THIS_MODULE;</span><br></pre></td></tr></table></figure>
+<p>所以：</p>
+<blockquote>
+<p><strong>块设备驱动看到的已经不是“文件读写”，而是“块 I&#x2F;O 请求”</strong></p>
+</blockquote>
+<p>这也是为什么：</p>
+<ul>
+<li><code>struct block_device_operations</code> 里没有 <code>.read / .write</code></li>
+<li>真正的数据路径在 <code>bio</code> &#x2F; <code>request</code></li>
+</ul>
+<h3 id="通用块层：内核帮我做了什么？"><a href="#通用块层：内核帮我做了什么？" class="headerlink" title="通用块层：内核帮我做了什么？"></a>通用块层：内核帮我做了什么？</h3><p>在我真正处理 I&#x2F;O 之前，<strong>通用块层已经干了大量工作</strong>。</p>
+<p>它主要负责：</p>
+<ul>
+<li>把文件 I&#x2F;O 转换成块 I&#x2F;O</li>
+<li>页缓存（page cache）</li>
+<li>bio 合并（I&#x2F;O 聚合）</li>
+<li>I&#x2F;O 调度（deadline &#x2F; bfq &#x2F; none）</li>
+<li>顺序优化、重排</li>
+</ul>
+<p>我写的驱动 <strong>完全不用关心这些</strong>。</p>
+<h4 id="1️⃣-bio：块-I-O-的最小描述单元"><a href="#1️⃣-bio：块-I-O-的最小描述单元" class="headerlink" title="1️⃣ bio：块 I&#x2F;O 的最小描述单元"></a>1️⃣ bio：块 I&#x2F;O 的最小描述单元</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">bio</span> &#123;</span></span><br><span class="line">    <span class="type">sector_t</span>        bi_sector;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">bio_vec</span> *<span class="title">bi_io_vec</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">bvec_iter</span> <span class="title">bi_iter</span>;</span></span><br><span class="line">    ...</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
 
-<p>这里的关键点是：<br><code>file_operations</code> 在这一步就已经和设备绑定</p>
-<h4 id="注册到内核"><a href="#注册到内核" class="headerlink" title="注册到内核"></a>注册到内核</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cdev_add</span>(&amp;my_cdev, dev, <span class="number">1</span>);</span><br></pre></td></tr></table></figure>
+<p>我现在的理解是：</p>
+<blockquote>
+<p><strong>bio &#x3D; “从某个逻辑扇区开始，对一段数据做读&#x2F;写”</strong></p>
+</blockquote>
+<p>特点：</p>
+<ul>
+<li>可能跨多个 page</li>
+<li>内存不一定连续</li>
+<li>但逻辑地址（sector）是连续的</li>
+</ul>
+<hr>
+<h4 id="2️⃣-request：多个-bio-的集合"><a href="#2️⃣-request：多个-bio-的集合" class="headerlink" title="2️⃣ request：多个 bio 的集合"></a>2️⃣ request：多个 bio 的集合</h4><p>在 <code>blk-mq</code> 之前：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">多个 bio</span><br><span class="line">   ↓</span><br><span class="line">合并成 request</span><br><span class="line">   ↓</span><br><span class="line">送给驱动</span><br></pre></td></tr></table></figure>
 
-<p>到这里为止：<br>内核已经“认识”这个字符设备了。<br>但用户态还不能访问，因为还没有 &#x2F;dev 节点</p>
-<h3 id="创建设备节点（-dev-xxx）"><a href="#创建设备节点（-dev-xxx）" class="headerlink" title="创建设备节点（&#x2F;dev&#x2F;xxx）"></a>创建设备节点（&#x2F;dev&#x2F;xxx）</h3><p>现在基本不会手动 mknod 了，我一般都用 class + device，交给 udev 自动创建设备节点。</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 创建 class</span></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">class</span> *my_class;</span><br><span class="line">my_class = <span class="built_in">class_create</span>(THIS_MODULE, <span class="string">&quot;mychar&quot;</span>);</span><br><span class="line"><span class="comment">// 创建设备</span></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">device</span> *my_device;</span><br><span class="line">my_device = <span class="built_in">device_create</span>(my_class, <span class="literal">NULL</span>, dev, <span class="literal">NULL</span>, <span class="string">&quot;mychar0&quot;</span>);</span><br></pre></td></tr></table></figure>
+<p>在 <code>blk-mq</code> 之后：</p>
+<ul>
+<li>request 仍然存在</li>
+<li>但调度和分发更并行</li>
+</ul>
+<h3 id="块设备驱动在分层中的位置"><a href="#块设备驱动在分层中的位置" class="headerlink" title="块设备驱动在分层中的位置"></a>块设备驱动在分层中的位置</h3><p>现在再回头看块设备驱动，其实非常清晰：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">通用块层</span><br><span class="line">   │</span><br><span class="line">   │  bio / request</span><br><span class="line">   ▼</span><br><span class="line">块设备驱动</span><br><span class="line">   │</span><br><span class="line">   │  sector → 物理地址</span><br><span class="line">   ▼</span><br><span class="line">硬件操作</span><br></pre></td></tr></table></figure>
 
-<p>最终效果：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">/dev/mychar0</span><br><span class="line">/sys/class/mychar/mychar0</span><br></pre></td></tr></table></figure>
+<p>我在驱动里要做的事，本质只有三步：</p>
+<ol>
+<li><p><strong>解析 I&#x2F;O 请求</strong></p>
+<ul>
+<li>起始 sector</li>
+<li>数据长度</li>
+<li>读 or 写</li>
+</ul>
+</li>
+<li><p><strong>完成数据传输</strong></p>
+<ul>
+<li>memcpy（内存盘）</li>
+<li>DMA（真实设备）</li>
+</ul>
+</li>
+<li><p><strong>通知内核完成</strong></p>
+<ul>
+<li><code>bio_endio()</code> 或 <code>blk_mq_end_request()</code></li>
+</ul>
+</li>
+</ol>
+<hr>
+<h3 id="两种常见的块设备驱动模型"><a href="#两种常见的块设备驱动模型" class="headerlink" title="两种常见的块设备驱动模型"></a>两种常见的块设备驱动模型</h3><h4 id="1️⃣-make-request-模型（简单、好理解）"><a href="#1️⃣-make-request-模型（简单、好理解）" class="headerlink" title="1️⃣ make_request 模型（简单、好理解）"></a>1️⃣ make_request 模型（简单、好理解）</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">bio</span><br><span class="line"> ↓</span><br><span class="line">make_request_fn</span><br><span class="line"> ↓</span><br><span class="line">设备读写</span><br><span class="line"> ↓</span><br><span class="line">bio_endio</span><br></pre></td></tr></table></figure>
 
-<p>卸载时清理</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">device_destroy</span>(my_class, dev);</span><br><span class="line"><span class="built_in">class_destroy</span>(my_class);</span><br></pre></td></tr></table></figure>
+<p>特点：</p>
+<ul>
+<li><p>驱动直接处理 bio</p>
+</li>
+<li><p>不关心 request</p>
+</li>
+<li><p>非常适合：</p>
+<ul>
+<li>内存块设备</li>
+<li>loop 设备</li>
+<li>学习用途</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h4 id="2️⃣-blk-mq-模型（现代、高性能）"><a href="#2️⃣-blk-mq-模型（现代、高性能）" class="headerlink" title="2️⃣ blk-mq 模型（现代、高性能）"></a>2️⃣ blk-mq 模型（现代、高性能）</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">bio</span><br><span class="line"> ↓</span><br><span class="line">request</span><br><span class="line"> ↓</span><br><span class="line">blk_mq_ops.queue_rq</span><br><span class="line"> ↓</span><br><span class="line">设备提交</span><br><span class="line"> ↓</span><br><span class="line">blk_mq_end_request</span><br></pre></td></tr></table></figure>
 
-<h3 id="实现-file-operations（最核心的部分）"><a href="#实现-file-operations（最核心的部分）" class="headerlink" title="实现 file_operations（最核心的部分）"></a>实现 file_operations（最核心的部分）</h3><p>file_operations 决定了用户态系统调用是如何一步步走到驱动里的。</p>
-<h4 id="最常用的一组回调"><a href="#最常用的一组回调" class="headerlink" title="最常用的一组回调"></a>最常用的一组回调</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">const</span> <span class="keyword">struct</span> <span class="title class_">file_operations</span> my_fops = &#123;</span><br><span class="line">    .owner          = THIS_MODULE,</span><br><span class="line">    .open           = my_open,</span><br><span class="line">    .release        = my_release,</span><br><span class="line">    .read           = my_read,</span><br><span class="line">    .write          = my_write,</span><br><span class="line">    .unlocked_ioctl = my_ioctl,</span><br><span class="line">    .poll           = my_poll,</span><br><span class="line">    .mmap           = my_mmap,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>特点：</p>
+<ul>
+<li>多队列</li>
+<li>多 CPU 并行</li>
+<li>几乎所有新存储设备都用它</li>
+</ul>
+<hr>
+<h3 id="从“分层”角度再看-gendisk-queue"><a href="#从“分层”角度再看-gendisk-queue" class="headerlink" title="从“分层”角度再看 gendisk &#x2F; queue"></a>从“分层”角度再看 gendisk &#x2F; queue</h3><p>现在我再看这几个结构，就非常顺了：</p>
+<h4 id="gendisk-——-“设备对外的门面”"><a href="#gendisk-——-“设备对外的门面”" class="headerlink" title="gendisk —— “设备对外的门面”"></a>gendisk —— “设备对外的门面”</h4><ul>
+<li>设备名</li>
+<li>容量</li>
+<li>主次设备号</li>
+<li>和文件系统打交道</li>
+</ul>
+<h4 id="request-queue-——-“I-O-入口”"><a href="#request-queue-——-“I-O-入口”" class="headerlink" title="request_queue —— “I&#x2F;O 入口”"></a>request_queue —— “I&#x2F;O 入口”</h4><ul>
+<li>通用块层 → 驱动的接口</li>
+<li>I&#x2F;O 在这里排队、下发</li>
+</ul>
+<hr>
+<blockquote>
+<p><strong>块设备驱动不是给“人”用的，而是给“文件系统和块层”用的。</strong></p>
+</blockquote>
+<p>所以：</p>
+<ul>
+<li>不要站在 <code>cp / dd</code> 的角度想</li>
+<li>要站在 <strong>bio &#x2F; sector &#x2F; page</strong> 的角度想</li>
+</ul>
+<hr>
+<h2 id="理解完框架后，再来看块设备驱动的整体流程"><a href="#理解完框架后，再来看块设备驱动的整体流程" class="headerlink" title="理解完框架后，再来看块设备驱动的整体流程"></a>理解完框架后，再来看块设备驱动的整体流程</h2><p>我一般把编写流程拆成下面几步 </p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">模块加载</span><br><span class="line">  ↓</span><br><span class="line">申请主设备号</span><br><span class="line">  ↓</span><br><span class="line">分配 gendisk</span><br><span class="line">  ↓</span><br><span class="line">初始化 request_queue</span><br><span class="line">  ↓</span><br><span class="line">绑定 disk 与 queue</span><br><span class="line">  ↓</span><br><span class="line">add_disk()</span><br><span class="line">  ↓</span><br><span class="line">等待 I/O 请求</span><br></pre></td></tr></table></figure>
 
-<p>并不是所有字符设备都需要这么全，实际项目里一般是按需实现。</p>
-<h4 id="几个最常用的回调实现思路"><a href="#几个最常用的回调实现思路" class="headerlink" title="几个最常用的回调实现思路"></a>几个最常用的回调实现思路</h4><h5 id="open-release"><a href="#open-release" class="headerlink" title="open &#x2F; release"></a>open &#x2F; release</h5><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">int</span> <span class="title">my_open</span><span class="params">(<span class="keyword">struct</span> inode *inode, <span class="keyword">struct</span> file *filp)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    filp-&gt;private_data = my_dev;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">static</span> <span class="type">int</span> <span class="title">my_release</span><span class="params">(<span class="keyword">struct</span> inode *inode, <span class="keyword">struct</span> file *filp)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>这是我几乎每个字符设备都会写的模板：</p>
-<p>通过 private_data 保存设备上下文<br>后续 read&#x2F;write&#x2F;ioctl 都能直接拿到</p>
-<h5 id="read"><a href="#read" class="headerlink" title="read"></a>read</h5><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">ssize_t</span> <span class="title">my_read</span><span class="params">(<span class="keyword">struct</span> file *filp,</span></span></span><br><span class="line"><span class="params"><span class="function">                       <span class="type">char</span> __user *buf,</span></span></span><br><span class="line"><span class="params"><span class="function">                       <span class="type">size_t</span> count,</span></span></span><br><span class="line"><span class="params"><span class="function">                       <span class="type">loff_t</span> *ppos)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="type">char</span> kbuf[] = <span class="string">&quot;hello\n&quot;</span>;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (*ppos &gt;= <span class="built_in">sizeof</span>(kbuf))</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">copy_to_user</span>(buf, kbuf, <span class="built_in">sizeof</span>(kbuf)))</span><br><span class="line">        <span class="keyword">return</span> -EFAULT;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    *ppos += <span class="built_in">sizeof</span>(kbuf);</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">sizeof</span>(kbuf);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<hr>
+<h2 id="模块初始化：申请主设备号"><a href="#模块初始化：申请主设备号" class="headerlink" title="模块初始化：申请主设备号"></a>模块初始化：申请主设备号</h2><h3 id="1️⃣-register-blkdev"><a href="#1️⃣-register-blkdev" class="headerlink" title="1️⃣ register_blkdev()"></a>1️⃣ register_blkdev()</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> major;</span><br><span class="line"></span><br><span class="line">major = register_blkdev(<span class="number">0</span>, <span class="string">&quot;my_blkdev&quot;</span>);</span><br><span class="line"><span class="keyword">if</span> (major &lt; <span class="number">0</span>) &#123;</span><br><span class="line">    pr_err(<span class="string">&quot;register_blkdev failed\n&quot;</span>);</span><br><span class="line">    <span class="keyword">return</span> major;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p>这里重点注意两点：</p>
-<p>一定用 copy_to_user<br>正确维护文件偏移 *ppos</p>
-<h5 id="write"><a href="#write" class="headerlink" title="write"></a>write</h5><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">ssize_t</span> <span class="title">my_write</span><span class="params">(<span class="keyword">struct</span> file *filp,</span></span></span><br><span class="line"><span class="params"><span class="function">                        <span class="type">const</span> <span class="type">char</span> __user *buf,</span></span></span><br><span class="line"><span class="params"><span class="function">                        <span class="type">size_t</span> count,</span></span></span><br><span class="line"><span class="params"><span class="function">                        <span class="type">loff_t</span> *ppos)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="type">char</span> kbuf[<span class="number">64</span>];</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (count &gt; <span class="built_in">sizeof</span>(kbuf))</span><br><span class="line">        count = <span class="built_in">sizeof</span>(kbuf);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">copy_from_user</span>(kbuf, buf, count))</span><br><span class="line">        <span class="keyword">return</span> -EFAULT;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> count;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li><code>0</code>：让内核动态分配主设备号</li>
+<li><code>&quot;my_blkdev&quot;</code>：在 <code>/proc/devices</code> 里看到的名字</li>
+</ul>
+<blockquote>
+<p>📌 <strong>块设备一定要有主设备号，没有就没法创建设备节点</strong></p>
+</blockquote>
+<hr>
+<h2 id="分配并初始化-gendisk（核心对象）"><a href="#分配并初始化-gendisk（核心对象）" class="headerlink" title="分配并初始化 gendisk（核心对象）"></a>分配并初始化 gendisk（核心对象）</h2><h3 id="2️⃣-alloc-disk"><a href="#2️⃣-alloc-disk" class="headerlink" title="2️⃣ alloc_disk()"></a>2️⃣ alloc_disk()</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">gendisk</span> *<span class="title">gd</span>;</span></span><br><span class="line"></span><br><span class="line">gd = alloc_disk(<span class="number">1</span>);   <span class="comment">// 次设备号数量</span></span><br></pre></td></tr></table></figure>
 
-<h5 id="ioctl（控制接口）"><a href="#ioctl（控制接口）" class="headerlink" title="ioctl（控制接口）"></a>ioctl（控制接口）</h5><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> MY_CMD_RESET _IO(<span class="string">&#x27;M&#x27;</span>, 0)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MY_CMD_SET   _IOW(<span class="string">&#x27;M&#x27;</span>, 1, int)</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">static</span> <span class="type">long</span> <span class="title">my_ioctl</span><span class="params">(<span class="keyword">struct</span> file *filp,</span></span></span><br><span class="line"><span class="params"><span class="function">                     <span class="type">unsigned</span> <span class="type">int</span> cmd,</span></span></span><br><span class="line"><span class="params"><span class="function">                     <span class="type">unsigned</span> <span class="type">long</span> arg)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">switch</span> (cmd) &#123;</span><br><span class="line">    <span class="keyword">case</span> MY_CMD_RESET:</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> MY_CMD_SET:</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">default</span>:</span><br><span class="line">        <span class="keyword">return</span> -EINVAL;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>gendisk</code> 是块设备在内核中的“门面”，非常关键。</p>
+<h3 id="常用成员设置"><a href="#常用成员设置" class="headerlink" title="常用成员设置"></a>常用成员设置</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">gd-&gt;major = major;</span><br><span class="line">gd-&gt;first_minor = <span class="number">0</span>;</span><br><span class="line">gd-&gt;fops = &amp;my_blk_fops;</span><br><span class="line">gd-&gt;private_data = dev;</span><br><span class="line"><span class="built_in">snprintf</span>(gd-&gt;disk_name, <span class="number">32</span>, <span class="string">&quot;myblk&quot;</span>);</span><br></pre></td></tr></table></figure>
 
-<p>ioctl 我一般用来做：</p>
-<p>参数配置<br>模式切换<br>硬件控制类操作  </p>
-<h5 id="poll-支持"><a href="#poll-支持" class="headerlink" title="poll 支持"></a>poll 支持</h5><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">unsigned</span> <span class="type">int</span> <span class="title">my_poll</span><span class="params">(<span class="keyword">struct</span> file *filp, poll_table *wait)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="built_in">poll_wait</span>(filp, &amp;wq, wait);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (data_ready)</span><br><span class="line">        <span class="keyword">return</span> POLLIN | POLLRDNORM;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<hr>
+<h2 id="block-device-operations（不像字符设备那么重要）"><a href="#block-device-operations（不像字符设备那么重要）" class="headerlink" title="block_device_operations（不像字符设备那么重要）"></a>block_device_operations（不像字符设备那么重要）</h2><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">const</span> <span class="class"><span class="keyword">struct</span> <span class="title">block_device_operations</span> <span class="title">my_blk_fops</span> =</span> &#123;</span><br><span class="line">    .owner = THIS_MODULE,</span><br><span class="line">    .open  = my_blk_open,</span><br><span class="line">    .release = my_blk_release,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
 
-<h3 id="阻塞、唤醒与并发控制"><a href="#阻塞、唤醒与并发控制" class="headerlink" title="阻塞、唤醒与并发控制"></a>阻塞、唤醒与并发控制</h3><p>字符设备很容易遇到阻塞 IO 的需求，这块在实际项目里非常常见。</p>
-<h4 id="常用同步手段"><a href="#常用同步手段" class="headerlink" title="常用同步手段"></a>常用同步手段</h4><pre><code>进程上下文	mutex   
-中断上下文	spinlock   
-阻塞读写	wait_queue   
-poll/select	poll_wait   
-</code></pre>
-<h5 id="阻塞-read-示例"><a href="#阻塞-read-示例" class="headerlink" title="阻塞 read 示例"></a>阻塞 read 示例</h5><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">wait_event_interruptible</span>(wq, data_ready);</span><br></pre></td></tr></table></figure>
+<p>注意：</p>
+<ul>
+<li><strong>块设备驱动并不关心 read&#x2F;write</strong></li>
+<li><code>open()</code> 只是打开整个设备（不是文件）</li>
+</ul>
+<hr>
+<h2 id="初始化请求队列（真正的灵魂）"><a href="#初始化请求队列（真正的灵魂）" class="headerlink" title="初始化请求队列（真正的灵魂）"></a>初始化请求队列（真正的灵魂）</h2><h3 id="3️⃣-blk-alloc-queue-blk-mq-init-queue"><a href="#3️⃣-blk-alloc-queue-blk-mq-init-queue" class="headerlink" title="3️⃣ blk_alloc_queue() &#x2F; blk_mq_init_queue()"></a>3️⃣ blk_alloc_queue() &#x2F; blk_mq_init_queue()</h3><p>老接口（简单）：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">request_queue</span> *<span class="title">queue</span>;</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">queue</span> = blk_alloc_queue(GFP_KERNEL);</span><br><span class="line">blk_queue_make_request(<span class="built_in">queue</span>, my_make_request);</span><br></pre></td></tr></table></figure>
 
+<p>现代推荐（blk-mq，多队列）：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">queue</span> = blk_mq_init_sq_queue(&amp;tag_set,</span><br><span class="line">                             my_queue_rq,</span><br><span class="line">                             <span class="number">128</span>,</span><br><span class="line">                             BLK_MQ_F_SHOULD_MERGE);</span><br></pre></td></tr></table></figure>
 
-<h3 id="模块卸载顺序"><a href="#模块卸载顺序" class="headerlink" title="模块卸载顺序"></a>模块卸载顺序</h3><p>字符设备卸载时，一般严格按下面顺序来：</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">device_destroy</span>(my_class, dev);</span><br><span class="line"><span class="built_in">class_destroy</span>(my_class);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="built_in">cdev_del</span>(&amp;my_cdev);</span><br><span class="line"><span class="built_in">unregister_chrdev_region</span>(dev, <span class="number">1</span>);</span><br></pre></td></tr></table></figure>
-<p>顺序错了，很容易踩坑。</p>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><pre><code>设备号 → cdev → file_operations → /dev 节点 → 用户态访问
-</code></pre>
-<p>核心对象关系：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">dev_t</span><br><span class="line"> └─ cdev</span><br><span class="line">     └─ file_operations</span><br><span class="line">         └─ open / read / write / ioctl</span><br></pre></td></tr></table></figure>
-<h2 id="进阶方向"><a href="#进阶方向" class="headerlink" title="进阶方向"></a>进阶方向</h2><p>inode &#x2F; file &#x2F; cdev 之间的真实关系</p>
-<p>字符设备如何和中断、workqueue 配合</p>
-<p>阻塞 IO 与非阻塞 IO 的设计差异</p>
-<p>ioctl 的设计规范和兼容性问题</p>
-<p>这一篇更多是打地基，后面再逐个展开。</p>
+<blockquote>
+<p>📌 学习阶段，<strong>建议先理解 <code>make_request_fn</code> 版本</strong></p>
+</blockquote>
+<hr>
+<h2 id="处理-I-O：make-request-fn"><a href="#处理-I-O：make-request-fn" class="headerlink" title="处理 I&#x2F;O：make_request_fn"></a>处理 I&#x2F;O：make_request_fn</h2><h3 id="4️⃣-make-request-fn"><a href="#4️⃣-make-request-fn" class="headerlink" title="4️⃣ make_request_fn"></a>4️⃣ make_request_fn</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">blk_qc_t</span> <span class="title function_">my_make_request</span><span class="params">(<span class="keyword">struct</span> request_queue *q, <span class="keyword">struct</span> bio *bio)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">bio_vec</span> <span class="title">bvec</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">bvec_iter</span> <span class="title">iter</span>;</span></span><br><span class="line">    <span class="type">sector_t</span> sector = bio-&gt;bi_iter.bi_sector;</span><br><span class="line"></span><br><span class="line">    bio_for_each_segment(bvec, bio, iter) &#123;</span><br><span class="line">        <span class="type">void</span> *buf = kmap_atomic(bvec.bv_page) + bvec.bv_offset;</span><br><span class="line">        <span class="type">unsigned</span> <span class="type">int</span> len = bvec.bv_len;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (bio_data_dir(bio) == READ) &#123;</span><br><span class="line">            <span class="comment">// 从设备读到 buf</span></span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// 从 buf 写到设备</span></span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        kunmap_atomic(buf);</span><br><span class="line">        sector += len &gt;&gt; <span class="number">9</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    bio_endio(bio);</span><br><span class="line">    <span class="keyword">return</span> BLK_QC_T_NONE;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里是<strong>块设备驱动最核心的地方</strong>：</p>
+<ul>
+<li><code>bio</code>：一次 I&#x2F;O 请求</li>
+<li><code>bio_vec</code>：bio 可能是 <strong>非连续内存</strong></li>
+<li><code>bi_sector</code>：逻辑扇区号（512B 为单位）</li>
+</ul>
+<hr>
+<h2 id="绑定-queue-和-gendisk"><a href="#绑定-queue-和-gendisk" class="headerlink" title="绑定 queue 和 gendisk"></a>绑定 queue 和 gendisk</h2><h3 id="5️⃣-连接起来"><a href="#5️⃣-连接起来" class="headerlink" title="5️⃣ 连接起来"></a>5️⃣ 连接起来</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">gd-&gt;<span class="built_in">queue</span> = <span class="built_in">queue</span>;</span><br><span class="line">set_capacity(gd, dev-&gt;size_in_sectors);</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><code>set_capacity()</code> 决定了 <code>fdisk -l</code> 看到的容量</li>
+</ul>
+<hr>
+<h2 id="注册块设备"><a href="#注册块设备" class="headerlink" title="注册块设备"></a>注册块设备</h2><h3 id="6️⃣-add-disk"><a href="#6️⃣-add-disk" class="headerlink" title="6️⃣ add_disk()"></a>6️⃣ add_disk()</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">add_disk(gd);</span><br></pre></td></tr></table></figure>
+
+<p>到这一步：</p>
+<ul>
+<li><code>/dev/myblk</code> 出现</li>
+<li>可以 <code>fdisk</code></li>
+<li>可以 <code>mkfs</code></li>
+<li>可以 <code>mount</code></li>
+</ul>
+<p>🎉 <strong>块设备正式上线</strong></p>
+<hr>
+<h2 id="模块卸载时的清理顺序"><a href="#模块卸载时的清理顺序" class="headerlink" title="模块卸载时的清理顺序"></a>模块卸载时的清理顺序</h2><p>我一般按这个顺序：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">del_gendisk(gd);</span><br><span class="line">put_disk(gd);</span><br><span class="line"></span><br><span class="line">blk_cleanup_queue(<span class="built_in">queue</span>);</span><br><span class="line"></span><br><span class="line">unregister_blkdev(major, <span class="string">&quot;my_blkdev&quot;</span>);</span><br></pre></td></tr></table></figure>
+
+<p><strong>顺序错了，很容易 oops</strong></p>
+<hr>
+<h2 id="块设备驱动常用-API-总结"><a href="#块设备驱动常用-API-总结" class="headerlink" title="块设备驱动常用 API 总结"></a>块设备驱动常用 API 总结</h2><h3 id="设备相关"><a href="#设备相关" class="headerlink" title="设备相关"></a>设备相关</h3><table>
+<thead>
+<tr>
+<th>API</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>register_blkdev</td>
+<td>注册主设备号</td>
+</tr>
+<tr>
+<td>alloc_disk</td>
+<td>分配 gendisk</td>
+</tr>
+<tr>
+<td>add_disk</td>
+<td>注册磁盘</td>
+</tr>
+<tr>
+<td>del_gendisk</td>
+<td>删除磁盘</td>
+</tr>
+</tbody></table>
+<hr>
+<h3 id="请求队列"><a href="#请求队列" class="headerlink" title="请求队列"></a>请求队列</h3><table>
+<thead>
+<tr>
+<th>API</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>blk_alloc_queue</td>
+<td>分配 request_queue</td>
+</tr>
+<tr>
+<td>blk_queue_make_request</td>
+<td>设置 make_request_fn</td>
+</tr>
+<tr>
+<td>bio_endio</td>
+<td>通知 I&#x2F;O 完成</td>
+</tr>
+</tbody></table>
+<hr>
+<h3 id="bio-相关"><a href="#bio-相关" class="headerlink" title="bio 相关"></a>bio 相关</h3><table>
+<thead>
+<tr>
+<th>API</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>bio_for_each_segment</td>
+<td>遍历 bio</td>
+</tr>
+<tr>
+<td>bio_data_dir</td>
+<td>判断读&#x2F;写</td>
+</tr>
+<tr>
+<td>kmap_atomic</td>
+<td>映射页</td>
+</tr>
+<tr>
+<td>kunmap_atomic</td>
+<td>解除映射</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="我的一点体会"><a href="#我的一点体会" class="headerlink" title="我的一点体会"></a>我的一点体会</h2><ul>
+<li><p><strong>先写一个“内存块设备”</strong>（ramdisk 风格）</p>
+</li>
+<li><p>不要一上来就啃 blk-mq</p>
+</li>
+<li><p>真正理解：</p>
+<ul>
+<li><code>bio</code> 为什么不是连续内存</li>
+<li><code>sector</code> 和 <code>offset</code> 的关系</li>
+</ul>
+</li>
+<li><p>块设备驱动更像是：</p>
+<blockquote>
+<p><strong>“协议适配层”</strong>，而不是“数据搬运工”</p>
+</blockquote>
+</li>
+</ul>
 
       
     </div>
@@ -346,7 +561,7 @@ poll/select	poll_wait
 
 
   <nav class="pagination">
-    <a class="extend prev" rel="prev" title="Previous page" aria-label="Previous page" href="/page/2/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><span class="space">&hellip;</span><a class="page-number" href="/page/19/">19</a><a class="extend next" rel="next" title="Next page" aria-label="Next page" href="/page/4/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" title="Previous page" aria-label="Previous page" href="/page/2/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><span class="space">&hellip;</span><a class="page-number" href="/page/20/">20</a><a class="extend next" rel="next" title="Next page" aria-label="Next page" href="/page/4/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 </div>

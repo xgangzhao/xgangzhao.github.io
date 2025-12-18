@@ -166,7 +166,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
         <a href="/archives/">
-          <span class="site-state-item-count">19</span>
+          <span class="site-state-item-count">20</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -198,7 +198,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/12/13/%E6%B7%B1%E5%85%A5Linux%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E7%A8%8B%E5%BA%8F%E5%86%85%E6%A0%B8%E6%9C%BA%E5%88%B6-1-%E5%86%85%E6%A0%B8%E6%A8%A1%E5%9D%97-%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/">
+    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/12/15/Linux%E5%AD%97%E7%AC%A6%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -216,7 +216,7 @@
     </span>
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
-          <a href="/2025/12/13/%E6%B7%B1%E5%85%A5Linux%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E7%A8%8B%E5%BA%8F%E5%86%85%E6%A0%B8%E6%9C%BA%E5%88%B6-1-%E5%86%85%E6%A0%B8%E6%A8%A1%E5%9D%97-%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/" class="post-title-link" itemprop="url">Untitled</a>
+          <a href="/2025/12/15/Linux%E5%AD%97%E7%AC%A6%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8/" class="post-title-link" itemprop="url">Linux字符设备驱动</a>
         </h2>
 
         <div class="post-meta-container">
@@ -226,15 +226,9 @@
         <i class="far fa-calendar"></i>
       </span>
       <span class="post-meta-item-text">Posted on</span>
+      
 
-      <time title="Created: 2025-12-13 17:00:02" itemprop="dateCreated datePublished" datetime="2025-12-13T17:00:02+08:00">2025-12-13</time>
-    </span>
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar-check"></i>
-      </span>
-      <span class="post-meta-item-text">Edited on</span>
-      <time title="Modified: 2025-12-15 12:40:13" itemprop="dateModified" datetime="2025-12-15T12:40:13+08:00">2025-12-15</time>
+      <time title="Created: 2025-12-15 12:41:48 / Modified: 13:15:19" itemprop="dateCreated datePublished" datetime="2025-12-15T12:41:48+08:00">2025-12-15</time>
     </span>
 
   
@@ -247,19 +241,93 @@
     
     
     <div class="post-body" itemprop="articleBody">
-          <p>模块，其数据组织形式上是ELF格式的。主要包括ELF header, 若干sections和section header table.<br><img src="/image.png" alt="alt text"></p>
-<h2 id="模块的加载过程"><a href="#模块的加载过程" class="headerlink" title="模块的加载过程"></a>模块的加载过程</h2><p>总的来说，加载模块时，例如使用insmod。其首先利用文件系统的接口将模块读取到用户空间中的一段内存中，然后通过系统调用<code>sys_init_module</code>让内核来处理模块加载的流程。</p>
-<h3 id="sys-init-module"><a href="#sys-init-module" class="headerlink" title="sys_init_module"></a>sys_init_module</h3><h4 id="step1-调用load-module加载模块"><a href="#step1-调用load-module加载模块" class="headerlink" title="step1: 调用load_module加载模块"></a>step1: 调用load_module加载模块</h4><p>load_module会在内核中用vmalloc分配一块地址空间，然后将模块数据从用户空间copy到内核空间 （HDR视图）。<br>load_module找到section名称字符串表和符号名称字符串表。<br>遍历section hdr table中的所有entry，计算sh_addr.<br>初始化struct module类型的遍历mod.<br>sections会被分为两类：CORE和INIT，并为这两类section分配内存空间。  </p>
-<h4 id="step2-加载后的处理"><a href="#step2-加载后的处理" class="headerlink" title="step2: 加载后的处理"></a>step2: 加载后的处理</h4><p>调用模块的初始化函数：mod中init函数指针指向模块源码中的初始化函数。<br>初始化成功后释放不用的section （init, core)占用的内存，加载成功后释放HDR视图所占用的内存。</p>
-<h2 id="模块如何导出自身的函数-变量"><a href="#模块如何导出自身的函数-变量" class="headerlink" title="模块如何导出自身的函数&#x2F;变量"></a>模块如何导出自身的函数&#x2F;变量</h2><blockquote>
-<p>通过宏EXPORT_SYMBOL、EXPORT_SYMBOL_GPL和EXPORT_SYMBOL_FUTURE。内核模块会把导出的符号分别放到“__ksymtab”​、​“__ksymtab_gpl”和“__ksymtab_gpl_future”section中。如果一个内核模块向外界导出了自己的符号，那么将由模块的编译工具链负责生成这些导出符号section，而且这些section都带有SHF_ALLOC标志，所以在模块加载过程中会被搬移到CORE section区域中。如果模块没有向外界导出任何符号，那么在模块的ELF文件中，将不会产生这些section。</p>
+          <blockquote>
+<p>最近在系统地回顾 Linux 设备驱动基础，这一篇主要是字符设备驱动。一边看内核源码，一边把思路和常用 API 重新梳理了一遍，整理一下，方便以后自己翻</p>
 </blockquote>
-<p>内核需要管理模块导出的符号，使得其他模块能够使用这些符号。用find_symbol查找这些section在CORE中的位置，并记录在mod变量中。方便后续查找。</p>
-<h2 id="模块的参数传递"><a href="#模块的参数传递" class="headerlink" title="模块的参数传递"></a>模块的参数传递</h2><p>核心结构体struct kernel_param</p>
-<h2 id="模块依赖关系"><a href="#模块依赖关系" class="headerlink" title="模块依赖关系"></a>模块依赖关系</h2><p>两个链表：source_list和target_list</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&lt;include/linux/<span class="keyword">module</span>.h&gt;</span><br><span class="line"><span class="meta">#<span class="keyword">ifdef</span> CONFIG_MODULE_UNLOAD</span></span><br><span class="line">    <span class="comment">/* What modules depend on me? */</span></span><br><span class="line">    <span class="keyword">struct</span> <span class="title class_">list_head</span> source_list;</span><br><span class="line">    <span class="comment">/* What modules do I depend on? */</span></span><br><span class="line">    <span class="keyword">struct</span> <span class="title class_">list_head</span> target_list;</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br></pre></td></tr></table></figure>
+<h2 id="我理解的字符设备是什么"><a href="#我理解的字符设备是什么" class="headerlink" title="我理解的字符设备是什么"></a>我理解的字符设备是什么</h2><p>在 Linux 中，字符设备（Character Device）是一类按字节流进行访问的设备。它的典型特征是：  </p>
+<pre><code>不经过 page cache  
+面向字节而不是块  
+用户态直接通过 open / read / write / ioctl 访问  
+</code></pre>
+<p>我在实际接触到的字符设备基本包括：<br>GPIO<br>I2C &#x2F; SPI<br>UART<br>watchdog<br>各种控制类外设  </p>
+<p>内核里的访问路径大致如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">用户态</span><br><span class="line"> └─ open / read / write / ioctl</span><br><span class="line">    └─ VFS</span><br><span class="line">       └─ cdev（字符设备层）</span><br><span class="line">          └─ 具体驱动</span><br></pre></td></tr></table></figure>
 
-<h2 id="模块版本控制"><a href="#模块版本控制" class="headerlink" title="模块版本控制"></a>模块版本控制</h2>
+<p>所以从实现角度看，一句话就能概括：</p>
+<p>字符设备 &#x3D; cdev + file_operations + 设备节点</p>
+<h2 id="整体编写流程（先有全局感）"><a href="#整体编写流程（先有全局感）" class="headerlink" title="整体编写流程（先有全局感）"></a>整体编写流程（先有全局感）</h2><p>我自己在写字符设备驱动时，基本都会沿着下面这条固定主线走： </p>
+<pre><code>申请设备号（dev_t）   
+初始化并注册 cdev
+创建 /dev 设备节点    
+实现 file_operations   
+处理并发、阻塞、唤醒等问题  
+模块卸载时释放资源  
+</code></pre>
+<p>字符设备的好处就在于：流程非常稳定，套路几乎不变。下面按步骤展开。</p>
+<h3 id="申请设备号（dev-t）"><a href="#申请设备号（dev-t）" class="headerlink" title="申请设备号（dev_t）"></a>申请设备号（dev_t）</h3><p>字符设备通过 主设备号 + 次设备号 来唯一标识。</p>
+<h4 id="动态申请"><a href="#动态申请" class="headerlink" title="动态申请"></a>动态申请</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">dev_t</span> dev;</span><br><span class="line"><span class="built_in">alloc_chrdev_region</span>(&amp;dev, <span class="number">0</span>, <span class="number">1</span>, <span class="string">&quot;mychardev&quot;</span>);</span><br></pre></td></tr></table></figure>
+
+<p>参数含义：<br>dev：返回的设备号（包含 major&#x2F;minor）<br>0：起始 minor<br>1：设备个数  </p>
+<p>一般情况下，我都会用动态申请，避免和系统里已有的设备号冲突。</p>
+<h4 id="卸载时释放"><a href="#卸载时释放" class="headerlink" title="卸载时释放"></a>卸载时释放</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">unregister_chrdev_region</span>(dev, <span class="number">1</span>);</span><br></pre></td></tr></table></figure>
+
+<h3 id="初始化并注册-cdev"><a href="#初始化并注册-cdev" class="headerlink" title="初始化并注册 cdev"></a>初始化并注册 cdev</h3><p>cdev 是字符设备在内核中的核心对象，它负责把「设备号」和「操作函数」真正绑定起来。</p>
+<h4 id="定义并初始化"><a href="#定义并初始化" class="headerlink" title="定义并初始化"></a>定义并初始化</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">cdev</span> my_cdev;</span><br><span class="line"><span class="built_in">cdev_init</span>(&amp;my_cdev, &amp;my_fops);</span><br><span class="line">my_cdev.owner = THIS_MODULE;</span><br></pre></td></tr></table></figure>
+
+<p>这里的关键点是：<br><code>file_operations</code> 在这一步就已经和设备绑定</p>
+<h4 id="注册到内核"><a href="#注册到内核" class="headerlink" title="注册到内核"></a>注册到内核</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cdev_add</span>(&amp;my_cdev, dev, <span class="number">1</span>);</span><br></pre></td></tr></table></figure>
+
+<p>到这里为止：<br>内核已经“认识”这个字符设备了。<br>但用户态还不能访问，因为还没有 &#x2F;dev 节点</p>
+<h3 id="创建设备节点（-dev-xxx）"><a href="#创建设备节点（-dev-xxx）" class="headerlink" title="创建设备节点（&#x2F;dev&#x2F;xxx）"></a>创建设备节点（&#x2F;dev&#x2F;xxx）</h3><p>现在基本不会手动 mknod 了，我一般都用 class + device，交给 udev 自动创建设备节点。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 创建 class</span></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">class</span> *my_class;</span><br><span class="line">my_class = <span class="built_in">class_create</span>(THIS_MODULE, <span class="string">&quot;mychar&quot;</span>);</span><br><span class="line"><span class="comment">// 创建设备</span></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">device</span> *my_device;</span><br><span class="line">my_device = <span class="built_in">device_create</span>(my_class, <span class="literal">NULL</span>, dev, <span class="literal">NULL</span>, <span class="string">&quot;mychar0&quot;</span>);</span><br></pre></td></tr></table></figure>
+
+<p>最终效果：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">/dev/mychar0</span><br><span class="line">/sys/class/mychar/mychar0</span><br></pre></td></tr></table></figure>
+
+<p>卸载时清理</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">device_destroy</span>(my_class, dev);</span><br><span class="line"><span class="built_in">class_destroy</span>(my_class);</span><br></pre></td></tr></table></figure>
+
+<h3 id="实现-file-operations（最核心的部分）"><a href="#实现-file-operations（最核心的部分）" class="headerlink" title="实现 file_operations（最核心的部分）"></a>实现 file_operations（最核心的部分）</h3><p>file_operations 决定了用户态系统调用是如何一步步走到驱动里的。</p>
+<h4 id="最常用的一组回调"><a href="#最常用的一组回调" class="headerlink" title="最常用的一组回调"></a>最常用的一组回调</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">const</span> <span class="keyword">struct</span> <span class="title class_">file_operations</span> my_fops = &#123;</span><br><span class="line">    .owner          = THIS_MODULE,</span><br><span class="line">    .open           = my_open,</span><br><span class="line">    .release        = my_release,</span><br><span class="line">    .read           = my_read,</span><br><span class="line">    .write          = my_write,</span><br><span class="line">    .unlocked_ioctl = my_ioctl,</span><br><span class="line">    .poll           = my_poll,</span><br><span class="line">    .mmap           = my_mmap,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>并不是所有字符设备都需要这么全，实际项目里一般是按需实现。</p>
+<h4 id="几个最常用的回调实现思路"><a href="#几个最常用的回调实现思路" class="headerlink" title="几个最常用的回调实现思路"></a>几个最常用的回调实现思路</h4><h5 id="open-release"><a href="#open-release" class="headerlink" title="open &#x2F; release"></a>open &#x2F; release</h5><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">int</span> <span class="title">my_open</span><span class="params">(<span class="keyword">struct</span> inode *inode, <span class="keyword">struct</span> file *filp)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    filp-&gt;private_data = my_dev;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">static</span> <span class="type">int</span> <span class="title">my_release</span><span class="params">(<span class="keyword">struct</span> inode *inode, <span class="keyword">struct</span> file *filp)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这是我几乎每个字符设备都会写的模板：</p>
+<p>通过 private_data 保存设备上下文<br>后续 read&#x2F;write&#x2F;ioctl 都能直接拿到</p>
+<h5 id="read"><a href="#read" class="headerlink" title="read"></a>read</h5><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">ssize_t</span> <span class="title">my_read</span><span class="params">(<span class="keyword">struct</span> file *filp,</span></span></span><br><span class="line"><span class="params"><span class="function">                       <span class="type">char</span> __user *buf,</span></span></span><br><span class="line"><span class="params"><span class="function">                       <span class="type">size_t</span> count,</span></span></span><br><span class="line"><span class="params"><span class="function">                       <span class="type">loff_t</span> *ppos)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="type">char</span> kbuf[] = <span class="string">&quot;hello\n&quot;</span>;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (*ppos &gt;= <span class="built_in">sizeof</span>(kbuf))</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">copy_to_user</span>(buf, kbuf, <span class="built_in">sizeof</span>(kbuf)))</span><br><span class="line">        <span class="keyword">return</span> -EFAULT;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    *ppos += <span class="built_in">sizeof</span>(kbuf);</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">sizeof</span>(kbuf);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里重点注意两点：</p>
+<p>一定用 copy_to_user<br>正确维护文件偏移 *ppos</p>
+<h5 id="write"><a href="#write" class="headerlink" title="write"></a>write</h5><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">ssize_t</span> <span class="title">my_write</span><span class="params">(<span class="keyword">struct</span> file *filp,</span></span></span><br><span class="line"><span class="params"><span class="function">                        <span class="type">const</span> <span class="type">char</span> __user *buf,</span></span></span><br><span class="line"><span class="params"><span class="function">                        <span class="type">size_t</span> count,</span></span></span><br><span class="line"><span class="params"><span class="function">                        <span class="type">loff_t</span> *ppos)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="type">char</span> kbuf[<span class="number">64</span>];</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (count &gt; <span class="built_in">sizeof</span>(kbuf))</span><br><span class="line">        count = <span class="built_in">sizeof</span>(kbuf);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">copy_from_user</span>(kbuf, buf, count))</span><br><span class="line">        <span class="keyword">return</span> -EFAULT;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> count;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h5 id="ioctl（控制接口）"><a href="#ioctl（控制接口）" class="headerlink" title="ioctl（控制接口）"></a>ioctl（控制接口）</h5><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> MY_CMD_RESET _IO(<span class="string">&#x27;M&#x27;</span>, 0)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MY_CMD_SET   _IOW(<span class="string">&#x27;M&#x27;</span>, 1, int)</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">static</span> <span class="type">long</span> <span class="title">my_ioctl</span><span class="params">(<span class="keyword">struct</span> file *filp,</span></span></span><br><span class="line"><span class="params"><span class="function">                     <span class="type">unsigned</span> <span class="type">int</span> cmd,</span></span></span><br><span class="line"><span class="params"><span class="function">                     <span class="type">unsigned</span> <span class="type">long</span> arg)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">switch</span> (cmd) &#123;</span><br><span class="line">    <span class="keyword">case</span> MY_CMD_RESET:</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> MY_CMD_SET:</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">default</span>:</span><br><span class="line">        <span class="keyword">return</span> -EINVAL;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>ioctl 我一般用来做：</p>
+<p>参数配置<br>模式切换<br>硬件控制类操作  </p>
+<h5 id="poll-支持"><a href="#poll-支持" class="headerlink" title="poll 支持"></a>poll 支持</h5><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">unsigned</span> <span class="type">int</span> <span class="title">my_poll</span><span class="params">(<span class="keyword">struct</span> file *filp, poll_table *wait)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="built_in">poll_wait</span>(filp, &amp;wq, wait);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (data_ready)</span><br><span class="line">        <span class="keyword">return</span> POLLIN | POLLRDNORM;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="阻塞、唤醒与并发控制"><a href="#阻塞、唤醒与并发控制" class="headerlink" title="阻塞、唤醒与并发控制"></a>阻塞、唤醒与并发控制</h3><p>字符设备很容易遇到阻塞 IO 的需求，这块在实际项目里非常常见。</p>
+<h4 id="常用同步手段"><a href="#常用同步手段" class="headerlink" title="常用同步手段"></a>常用同步手段</h4><pre><code>进程上下文	mutex   
+中断上下文	spinlock   
+阻塞读写	wait_queue   
+poll/select	poll_wait   
+</code></pre>
+<h5 id="阻塞-read-示例"><a href="#阻塞-read-示例" class="headerlink" title="阻塞 read 示例"></a>阻塞 read 示例</h5><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">wait_event_interruptible</span>(wq, data_ready);</span><br></pre></td></tr></table></figure>
+
+
+<h3 id="模块卸载顺序"><a href="#模块卸载顺序" class="headerlink" title="模块卸载顺序"></a>模块卸载顺序</h3><p>字符设备卸载时，一般严格按下面顺序来：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">device_destroy</span>(my_class, dev);</span><br><span class="line"><span class="built_in">class_destroy</span>(my_class);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="built_in">cdev_del</span>(&amp;my_cdev);</span><br><span class="line"><span class="built_in">unregister_chrdev_region</span>(dev, <span class="number">1</span>);</span><br></pre></td></tr></table></figure>
+<p>顺序错了，很容易踩坑。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><pre><code>设备号 → cdev → file_operations → /dev 节点 → 用户态访问
+</code></pre>
+<p>核心对象关系：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">dev_t</span><br><span class="line"> └─ cdev</span><br><span class="line">     └─ file_operations</span><br><span class="line">         └─ open / read / write / ioctl</span><br></pre></td></tr></table></figure>
+<h2 id="进阶方向"><a href="#进阶方向" class="headerlink" title="进阶方向"></a>进阶方向</h2><p>inode &#x2F; file &#x2F; cdev 之间的真实关系</p>
+<p>字符设备如何和中断、workqueue 配合</p>
+<p>阻塞 IO 与非阻塞 IO 的设计差异</p>
+<p>ioctl 的设计规范和兼容性问题</p>
+<p>这一篇更多是打地基，后面再逐个展开。</p>
+
       
     </div>
 
@@ -278,7 +346,7 @@
 
 
   <nav class="pagination">
-    <a class="extend prev" rel="prev" title="Previous page" aria-label="Previous page" href="/page/3/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/19/">19</a><a class="extend next" rel="next" title="Next page" aria-label="Next page" href="/page/5/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" title="Previous page" aria-label="Previous page" href="/page/3/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/20/">20</a><a class="extend next" rel="next" title="Next page" aria-label="Next page" href="/page/5/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 </div>

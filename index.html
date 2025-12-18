@@ -166,7 +166,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
         <a href="/archives/">
-          <span class="site-state-item-count">19</span>
+          <span class="site-state-item-count">20</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -198,7 +198,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/12/15/Linux%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8/">
+    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/12/19/Linux%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E6%A8%A1%E5%9E%8B-%E4%B8%BB%E6%9C%BA%E9%A9%B1%E5%8A%A8%E5%92%8C%E5%A4%96%E8%AE%BE%E9%A9%B1%E5%8A%A8%E5%88%86%E7%A6%BB/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -216,7 +216,7 @@
     </span>
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
-          <a href="/2025/12/15/Linux%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8/" class="post-title-link" itemprop="url">Linux网络设备驱动</a>
+          <a href="/2025/12/19/Linux%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E6%A8%A1%E5%9E%8B-%E4%B8%BB%E6%9C%BA%E9%A9%B1%E5%8A%A8%E5%92%8C%E5%A4%96%E8%AE%BE%E9%A9%B1%E5%8A%A8%E5%88%86%E7%A6%BB/" class="post-title-link" itemprop="url">Linux设备驱动模型--主机驱动和外设驱动分离</a>
         </h2>
 
         <div class="post-meta-container">
@@ -228,7 +228,7 @@
       <span class="post-meta-item-text">Posted on</span>
       
 
-      <time title="Created: 2025-12-15 13:53:29 / Modified: 13:57:32" itemprop="dateCreated datePublished" datetime="2025-12-15T13:53:29+08:00">2025-12-15</time>
+      <time title="Created: 2025-12-19 00:40:15 / Modified: 00:41:36" itemprop="dateCreated datePublished" datetime="2025-12-19T00:40:15+08:00">2025-12-19</time>
     </span>
 
   
@@ -241,222 +241,19 @@
     
     
     <div class="post-body" itemprop="articleBody">
-          <blockquote>
-<p>写网络驱动这件事，一开始真的挺“玄学”的：<br><code>net_device</code>、<code>sk_buff</code>、<code>ndo_xxx</code>、NAPI、netif_rx ……名字都认识，但一连起来就迷糊。</p>
-</blockquote>
-<p>后来发现：<strong>网络驱动比字符 &#x2F; 块设备更“子系统化”</strong>，如果不先理解整体分层，直接啃代码会非常痛苦。</p>
-<p>这篇我就按 <strong>“先框架 → 再步骤 → 最后 API”</strong> 的顺序记录一下我的理解。</p>
-<hr>
-<h2 id="Linux-网络设备驱动的整体分层框架"><a href="#Linux-网络设备驱动的整体分层框架" class="headerlink" title="Linux 网络设备驱动的整体分层框架"></a>Linux 网络设备驱动的整体分层框架</h2><p>从上到下看，Linux 网络子系统大致可以分为 5 层：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">+-------------------------------+</span><br><span class="line">|        用户空间 (User)          |</span><br><span class="line">|  socket / send / recv         |</span><br><span class="line">+-------------------------------+</span><br><span class="line">|      协议栈 (TCP/IP)           |</span><br><span class="line">|  tcp/ip / udp / icmp          |</span><br><span class="line">+-------------------------------+</span><br><span class="line">|   网络核心层 (net core)         |</span><br><span class="line">|  net_device / sk_buff         |</span><br><span class="line">+-------------------------------+</span><br><span class="line">|  网络设备驱动层 (driver)         |</span><br><span class="line">|  ndo_open / ndo_start_xmit    |</span><br><span class="line">+-------------------------------+</span><br><span class="line">|      硬件层 (MAC / PHY)        |</span><br><span class="line">|  DMA / 中断 / 寄存器            |</span><br><span class="line">+-------------------------------+</span><br></pre></td></tr></table></figure>
-
-<h3 id="1️⃣-用户空间"><a href="#1️⃣-用户空间" class="headerlink" title="1️⃣ 用户空间"></a>1️⃣ 用户空间</h3><ul>
-<li>socket、bind、connect、send、recv</li>
-<li>完全感知不到“驱动”存在</li>
-</ul>
-<h3 id="2️⃣-协议栈"><a href="#2️⃣-协议栈" class="headerlink" title="2️⃣ 协议栈"></a>2️⃣ 协议栈</h3><ul>
-<li>TCP &#x2F; UDP &#x2F; IP &#x2F; ARP</li>
-<li>这里处理的是 <strong>“数据语义”</strong></li>
-<li>通过 <code>struct sk_buff</code> 与下层交互</li>
-</ul>
-<h3 id="3️⃣-网络核心层（net-core）"><a href="#3️⃣-网络核心层（net-core）" class="headerlink" title="3️⃣ 网络核心层（net core）"></a>3️⃣ 网络核心层（net core）</h3><p>这是<strong>驱动最重要的对接层</strong>：</p>
+          <p>主机驱动和外设驱动分离是一种核心的驱动架构设计思想，旨在解耦硬件控制器与具体设备，提高代码复用性和可移植性。这种设计广泛应用于SPI、I2C、USB等总线子系统中。</p>
+<h2 id="核心思想"><a href="#核心思想" class="headerlink" title="核心思想"></a>核心思想</h2><p>分离的本质是将驱动拆分为两个独立部分： </p>
 <ul>
-<li>维护 <code>struct net_device</code></li>
-<li>维护网络设备状态</li>
-<li>调用驱动提供的 <code>ndo_xxx</code> 回调</li>
+<li>主机驱动（Host Driver）：负责操作SoC内部的控制器硬件，产生总线波形（如SPI时序、I2C起始&#x2F;停止信号）</li>
+<li>外设驱动（Peripheral Driver）：负责实现具体设备的功能逻辑（如触摸屏采样、网卡收发），通过标准API请求主机驱动完成总线传输。<br>两者通过核心层（Core Layer）作为中间纽带通信，核心层提供统一的传输接口和数据结构定义，屏蔽底层差异。</li>
 </ul>
-<p><strong>网络驱动本质上就是：实现 net_device 的一组回调函数</strong></p>
-<h3 id="4️⃣-网络设备驱动层"><a href="#4️⃣-网络设备驱动层" class="headerlink" title="4️⃣ 网络设备驱动层"></a>4️⃣ 网络设备驱动层</h3><p>驱动真正干活的地方：</p>
+<h2 id="四个关键软件模块"><a href="#四个关键软件模块" class="headerlink" title="四个关键软件模块"></a>四个关键软件模块</h2><p>该架构涉及明确分工的四个模块：</p>
 <ul>
-<li>发包：把 skb 转成 DMA 数据</li>
-<li>收包：把 DMA 数据封装成 skb</li>
-<li>管理中断、队列、NAPI</li>
+<li>主机端驱动<br>直接操作控制器寄存器（如SPI的波特率、模式配置）<br>实现transfer_one_message等底层传输函数<br>示例：pl022_probe()中注册spi_controller，并填充setup和transfer_one_message回调</li>
+<li>核心层（连接纽带）<br>提供标准API（如spi_sync()、spi_async()）<br>定义通用数据结构（如spi_transfer、spi_message）<br>将外设请求路由到对应的主机驱动</li>
+<li>外设端驱动<br>在probe()中注册具体设备类型（如input_dev、net_device）<br>通过核心层API发起传输请求<br>示例：spi_driver结构体与platform_driver高度相似，体现通用模板设计</li>
+<li>板级逻辑<br>描述硬件连接关系（谁接在哪个控制器、片选信号等）<br>实现方式：<br>传统：arch&#x2F;arm&#x2F;mach-xx板文件中定义spi_board_info数组<br>现代：设备树（Device Tree）中配置compatible属性</li>
 </ul>
-<h3 id="5️⃣-硬件层"><a href="#5️⃣-硬件层" class="headerlink" title="5️⃣ 硬件层"></a>5️⃣ 硬件层</h3><ul>
-<li>MAC（控制以太网帧）</li>
-<li>PHY（物理层，MII &#x2F; RMII &#x2F; RGMII）</li>
-<li>DMA &#x2F; IRQ &#x2F; 寄存器</li>
-</ul>
-<hr>
-<h2 id="网络设备驱动的核心数据结构"><a href="#网络设备驱动的核心数据结构" class="headerlink" title="网络设备驱动的核心数据结构"></a>网络设备驱动的核心数据结构</h2><h3 id="1️⃣-struct-net-device-——-网络设备的“身份证”"><a href="#1️⃣-struct-net-device-——-网络设备的“身份证”" class="headerlink" title="1️⃣ struct net_device —— 网络设备的“身份证”"></a>1️⃣ struct net_device —— 网络设备的“身份证”</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">net_device</span> &#123;</span></span><br><span class="line">    <span class="type">char</span> name[IFNAMSIZ];</span><br><span class="line">    <span class="type">unsigned</span> <span class="type">long</span> state;</span><br><span class="line">    <span class="type">const</span> <span class="class"><span class="keyword">struct</span> <span class="title">net_device_ops</span> *<span class="title">netdev_ops</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">ethtool_ops</span> *<span class="title">ethtool_ops</span>;</span></span><br><span class="line">    ...</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><strong>每一个网卡 &#x3D; 一个 net_device</strong></li>
-<li><code>ifconfig</code> &#x2F; <code>ip link</code> 操作的就是它</li>
-</ul>
-<h3 id="2️⃣-struct-net-device-ops-——-驱动必须实现的回调"><a href="#2️⃣-struct-net-device-ops-——-驱动必须实现的回调" class="headerlink" title="2️⃣ struct net_device_ops —— 驱动必须实现的回调"></a>2️⃣ struct net_device_ops —— 驱动必须实现的回调</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">net_device_ops</span> &#123;</span></span><br><span class="line">    <span class="type">int</span>  (*ndo_open)(<span class="keyword">struct</span> net_device *dev);</span><br><span class="line">    <span class="type">int</span>  (*ndo_stop)(<span class="keyword">struct</span> net_device *dev);</span><br><span class="line">    <span class="type">netdev_tx_t</span> (*ndo_start_xmit)(<span class="keyword">struct</span> sk_buff *skb,</span><br><span class="line">                                 <span class="keyword">struct</span> net_device *dev);</span><br><span class="line">    ...</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-
-<p>这是网络驱动的<strong>灵魂</strong>。</p>
-<hr>
-<h2 id="Linux-网络设备驱动的主要编写步骤"><a href="#Linux-网络设备驱动的主要编写步骤" class="headerlink" title="Linux 网络设备驱动的主要编写步骤"></a>Linux 网络设备驱动的主要编写步骤</h2><p>下面是我自己总结的一个“驱动骨架流程”。</p>
-<hr>
-<h3 id="第一步：分配并初始化-net-device"><a href="#第一步：分配并初始化-net-device" class="headerlink" title="第一步：分配并初始化 net_device"></a>第一步：分配并初始化 net_device</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">net_device</span> *<span class="title">ndev</span>;</span></span><br><span class="line"></span><br><span class="line">ndev = alloc_etherdev(<span class="keyword">sizeof</span>(<span class="keyword">struct</span> priv_data));</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><p><code>alloc_etherdev()</code> 会：</p>
-<ul>
-<li>分配 <code>net_device</code></li>
-<li>初始化以太网相关字段</li>
-<li>预留私有数据区</li>
-</ul>
-</li>
-</ul>
-<p>获取私有数据：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">priv_data</span> *<span class="title">priv</span> =</span> netdev_priv(ndev);</span><br></pre></td></tr></table></figure>
-
-<hr>
-<h3 id="第二步：设置-net-device-的关键字段"><a href="#第二步：设置-net-device-的关键字段" class="headerlink" title="第二步：设置 net_device 的关键字段"></a>第二步：设置 net_device 的关键字段</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">ndev-&gt;netdev_ops = &amp;my_netdev_ops;</span><br><span class="line">ndev-&gt;ethtool_ops = &amp;my_ethtool_ops;</span><br><span class="line">ndev-&gt;irq = irq_num;</span><br></pre></td></tr></table></figure>
-
-<p>常见还会设置：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ndev-&gt;watchdog_timeo = msecs_to_jiffies(<span class="number">5000</span>);</span><br></pre></td></tr></table></figure>
-
-<hr>
-<h3 id="第三步：注册网络设备"><a href="#第三步：注册网络设备" class="headerlink" title="第三步：注册网络设备"></a>第三步：注册网络设备</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">register_netdev(ndev);</span><br></pre></td></tr></table></figure>
-
-<p>或者：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">register_netdevice(ndev);</span><br></pre></td></tr></table></figure>
-
-<p>注册成功后：</p>
-<ul>
-<li><code>/sys/class/net/ethX</code> 出现</li>
-<li><code>ifconfig -a</code> 能看到设备</li>
-</ul>
-<p><strong>从这里开始，协议栈就“认识”这张网卡了</strong></p>
-<hr>
-<h3 id="第四步：实现-ndo-open-ndo-stop"><a href="#第四步：实现-ndo-open-ndo-stop" class="headerlink" title="第四步：实现 ndo_open &#x2F; ndo_stop"></a>第四步：实现 ndo_open &#x2F; ndo_stop</h3><h4 id="ndo-open（ifconfig-ethX-up）"><a href="#ndo-open（ifconfig-ethX-up）" class="headerlink" title="ndo_open（ifconfig ethX up）"></a>ndo_open（ifconfig ethX up）</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">int</span> <span class="title function_">my_open</span><span class="params">(<span class="keyword">struct</span> net_device *ndev)</span></span><br><span class="line">&#123;</span><br><span class="line">    request_irq(ndev-&gt;irq, my_irq_handler, <span class="number">0</span>,</span><br><span class="line">                ndev-&gt;name, ndev);</span><br><span class="line"></span><br><span class="line">    netif_start_queue(ndev);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>主要做三件事：</p>
-<ol>
-<li>申请中断</li>
-<li>初始化 DMA &#x2F; 硬件</li>
-<li>启动发送队列</li>
-</ol>
-<hr>
-<h4 id="ndo-stop（ifconfig-ethX-down）"><a href="#ndo-stop（ifconfig-ethX-down）" class="headerlink" title="ndo_stop（ifconfig ethX down）"></a>ndo_stop（ifconfig ethX down）</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">int</span> <span class="title function_">my_stop</span><span class="params">(<span class="keyword">struct</span> net_device *ndev)</span></span><br><span class="line">&#123;</span><br><span class="line">    netif_stop_queue(ndev);</span><br><span class="line">    free_irq(ndev-&gt;irq, ndev);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<hr>
-<h3 id="第五步：实现发包函数-ndo-start-xmit"><a href="#第五步：实现发包函数-ndo-start-xmit" class="headerlink" title="第五步：实现发包函数 ndo_start_xmit"></a>第五步：实现发包函数 ndo_start_xmit</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">netdev_tx_t</span></span><br><span class="line"><span class="title function_">my_start_xmit</span><span class="params">(<span class="keyword">struct</span> sk_buff *skb, <span class="keyword">struct</span> net_device *ndev)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="comment">// 1. 映射 DMA</span></span><br><span class="line">    <span class="comment">// 2. 把 skb-&gt;data 交给硬件</span></span><br><span class="line">    <span class="comment">// 3. 通知 MAC 发送</span></span><br><span class="line"></span><br><span class="line">    dev_kfree_skb(skb);</span><br><span class="line">    <span class="keyword">return</span> NETDEV_TX_OK;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>关键理解点：</p>
-<ul>
-<li><strong>协议栈已经把数据准备好了</strong></li>
-<li>驱动只负责“怎么送到网卡”</li>
-</ul>
-<hr>
-<h3 id="第六步：收包（中断-NAPI）"><a href="#第六步：收包（中断-NAPI）" class="headerlink" title="第六步：收包（中断 &#x2F; NAPI）"></a>第六步：收包（中断 &#x2F; NAPI）</h3><p>典型流程：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">硬件收到数据</span><br><span class="line">   ↓</span><br><span class="line">触发中断</span><br><span class="line">   ↓</span><br><span class="line">驱动从 DMA 取数据</span><br><span class="line">   ↓</span><br><span class="line">构造 sk_buff</span><br><span class="line">   ↓</span><br><span class="line">netif_rx() / napi_gro_receive()</span><br></pre></td></tr></table></figure>
-
-<p>示例：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">skb = netdev_alloc_skb(ndev, len);</span><br><span class="line"><span class="built_in">memcpy</span>(skb_put(skb, len), data, len);</span><br><span class="line"></span><br><span class="line">skb-&gt;protocol = eth_type_trans(skb, ndev);</span><br><span class="line">netif_rx(skb);</span><br></pre></td></tr></table></figure>
-
-<hr>
-<h3 id="第七步：NAPI（高性能必备）"><a href="#第七步：NAPI（高性能必备）" class="headerlink" title="第七步：NAPI（高性能必备）"></a>第七步：NAPI（高性能必备）</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">netif_napi_add(ndev, &amp;priv-&gt;napi, my_poll, <span class="number">64</span>);</span><br><span class="line">napi_enable(&amp;priv-&gt;napi);</span><br></pre></td></tr></table></figure>
-
-<p>在 <code>poll()</code> 中批量收包：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">int</span> <span class="title function_">my_poll</span><span class="params">(<span class="keyword">struct</span> napi_struct *napi, <span class="type">int</span> budget)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">int</span> work_done = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> (work_done &lt; budget) &#123;</span><br><span class="line">        <span class="comment">// 收包</span></span><br><span class="line">        work_done++;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (work_done &lt; budget)</span><br><span class="line">        napi_complete(napi);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> work_done;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<hr>
-<h3 id="第八步：卸载驱动"><a href="#第八步：卸载驱动" class="headerlink" title="第八步：卸载驱动"></a>第八步：卸载驱动</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">unregister_netdev(ndev);</span><br><span class="line">free_netdev(ndev);</span><br></pre></td></tr></table></figure>
-
-<hr>
-<h2 id="网络驱动中最常见的-API-总结"><a href="#网络驱动中最常见的-API-总结" class="headerlink" title="网络驱动中最常见的 API 总结"></a>网络驱动中最常见的 API 总结</h2><h3 id="1️⃣-net-device-相关"><a href="#1️⃣-net-device-相关" class="headerlink" title="1️⃣ net_device 相关"></a>1️⃣ net_device 相关</h3><table>
-<thead>
-<tr>
-<th>API</th>
-<th>作用</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>alloc_etherdev</td>
-<td>分配以太网设备</td>
-</tr>
-<tr>
-<td>register_netdev</td>
-<td>注册设备</td>
-</tr>
-<tr>
-<td>unregister_netdev</td>
-<td>注销设备</td>
-</tr>
-<tr>
-<td>netdev_priv</td>
-<td>获取私有数据</td>
-</tr>
-</tbody></table>
-<hr>
-<h3 id="2️⃣-skb-相关"><a href="#2️⃣-skb-相关" class="headerlink" title="2️⃣ skb 相关"></a>2️⃣ skb 相关</h3><table>
-<thead>
-<tr>
-<th>API</th>
-<th>作用</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>dev_alloc_skb</td>
-<td>分配 skb</td>
-</tr>
-<tr>
-<td>skb_put</td>
-<td>增加数据长度</td>
-</tr>
-<tr>
-<td>eth_type_trans</td>
-<td>设置协议类型</td>
-</tr>
-<tr>
-<td>dev_kfree_skb</td>
-<td>释放 skb</td>
-</tr>
-</tbody></table>
-<hr>
-<h3 id="3️⃣-发送-接收相关"><a href="#3️⃣-发送-接收相关" class="headerlink" title="3️⃣ 发送 &#x2F; 接收相关"></a>3️⃣ 发送 &#x2F; 接收相关</h3><table>
-<thead>
-<tr>
-<th>API</th>
-<th>作用</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>netif_start_queue</td>
-<td>启动发送队列</td>
-</tr>
-<tr>
-<td>netif_stop_queue</td>
-<td>停止发送</td>
-</tr>
-<tr>
-<td>netif_rx</td>
-<td>提交 skb 给协议栈</td>
-</tr>
-<tr>
-<td>napi_gro_receive</td>
-<td>NAPI 接收</td>
-</tr>
-</tbody></table>
-<hr>
-<h3 id="4️⃣-PHY-MDIO（进阶）"><a href="#4️⃣-PHY-MDIO（进阶）" class="headerlink" title="4️⃣ PHY &#x2F; MDIO（进阶）"></a>4️⃣ PHY &#x2F; MDIO（进阶）</h3><ul>
-<li><code>mdiobus_register</code></li>
-<li><code>phy_connect</code></li>
-<li><code>phy_start</code></li>
-<li><code>phy_stop</code></li>
-</ul>
-<hr>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><blockquote>
-<p><strong>网络驱动的本质，不是“实现协议”，而是“连接协议栈与硬件”</strong></p>
-</blockquote>
-<ul>
-<li><p>协议栈关心的是 <code>sk_buff</code></p>
-</li>
-<li><p>net core 负责调度</p>
-</li>
-<li><p>驱动只关心：</p>
-<ul>
-<li>skb 怎么变成 DMA</li>
-<li>DMA 怎么变成 skb</li>
-</ul>
-</li>
-</ul>
-<p>只要抓住 <strong>net_device + ndo_xxx + sk_buff</strong> 这三条主线，网络驱动就不会乱。</p>
 
       
     </div>
@@ -476,7 +273,7 @@
 
 
   <nav class="pagination">
-    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><span class="space">&hellip;</span><a class="page-number" href="/page/19/">19</a><a class="extend next" rel="next" title="Next page" aria-label="Next page" href="/page/2/"><i class="fa fa-angle-right"></i></a>
+    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><span class="space">&hellip;</span><a class="page-number" href="/page/20/">20</a><a class="extend next" rel="next" title="Next page" aria-label="Next page" href="/page/2/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 </div>

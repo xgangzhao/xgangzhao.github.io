@@ -166,7 +166,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
         <a href="/archives/">
-          <span class="site-state-item-count">19</span>
+          <span class="site-state-item-count">20</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -198,7 +198,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/12/10/%E5%B8%B8%E8%A7%81%E7%AE%97%E6%B3%95%E9%A2%98%E7%9B%AE%E6%A1%86%E6%9E%B6/">
+    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/12/10/struct-pack/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -216,7 +216,7 @@
     </span>
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
-          <a href="/2025/12/10/%E5%B8%B8%E8%A7%81%E7%AE%97%E6%B3%95%E9%A2%98%E7%9B%AE%E6%A1%86%E6%9E%B6/" class="post-title-link" itemprop="url">常见算法题目框架</a>
+          <a href="/2025/12/10/struct-pack/" class="post-title-link" itemprop="url">结构体对齐策略</a>
         </h2>
 
         <div class="post-meta-container">
@@ -228,7 +228,7 @@
       <span class="post-meta-item-text">Posted on</span>
       
 
-      <time title="Created: 2025-12-10 21:41:24 / Modified: 21:45:26" itemprop="dateCreated datePublished" datetime="2025-12-10T21:41:24+08:00">2025-12-10</time>
+      <time title="Created: 2025-12-10 21:52:22 / Modified: 22:00:22" itemprop="dateCreated datePublished" datetime="2025-12-10T21:52:22+08:00">2025-12-10</time>
     </span>
 
   
@@ -241,23 +241,15 @@
     
     
     <div class="post-body" itemprop="articleBody">
-          <h2 id="滑动窗口"><a href="#滑动窗口" class="headerlink" title="滑动窗口"></a>滑动窗口</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 索引区间 [left, right) 是窗口</span></span><br><span class="line"><span class="type">int</span> left = <span class="number">0</span>, right = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">while</span> (right &lt; nums.<span class="built_in">size</span>()) &#123;</span><br><span class="line">    <span class="comment">// 增大窗口</span></span><br><span class="line">    window.<span class="built_in">addLast</span>(nums[right]);</span><br><span class="line">    right++;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">while</span> (window needs shrink) &#123;</span><br><span class="line">        <span class="comment">// 缩小窗口</span></span><br><span class="line">        window.<span class="built_in">removeFirst</span>(nums[left]);</span><br><span class="line">        left++;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="二叉树"><a href="#二叉树" class="headerlink" title="二叉树"></a>二叉树</h2><p>二叉树题目的递归解法可以分两类思路，<br>第一类是遍历一遍二叉树得出答案，<br>第二类是通过分解问题计算出答案，这两类思路分别对应着<strong>回溯算法核心框架</strong> 和<strong>动态规划核心框架</strong>   </p>
-<p>动归&#x2F;DFS&#x2F;回溯算法都可以看做二叉树问题的扩展，只是它们的关注点不同：<br>● 动态规划算法属于分解问题（分治）的思路，它的关注点在整棵「子树」。<br>● 回溯算法属于遍历的思路，它的关注点在节点间的「树枝」。<br>● DFS 算法属于遍历的思路，它的关注点在单个「节点」。  </p>
-<h2 id="回溯"><a href="#回溯" class="headerlink" title="回溯"></a>回溯</h2><p>抽象地说，解决一个回溯问题，实际上就是遍历一棵决策树的过程，树的每个叶子节点存放着一个合法答案。你把整棵树遍历一遍，把叶子节点上的答案都收集起来，就能得到所有的合法答案。</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">result = []</span><br><span class="line">def <span class="built_in">backtrack</span>(路径, 选择列表):</span><br><span class="line">    <span class="keyword">if</span> 满足结束条件:</span><br><span class="line">        result.<span class="built_in">add</span>(路径)</span><br><span class="line">        <span class="keyword">return</span></span><br><span class="line">    </span><br><span class="line">    <span class="keyword">for</span> 选择 in 选择列表:</span><br><span class="line">        做选择</span><br><span class="line">        <span class="built_in">backtrack</span>(路径, 选择列表)</span><br><span class="line">        撤销选择</span><br></pre></td></tr></table></figure>
-
-<p><strong>注意元素有没有重复和可不可以复选</strong></p>
-<h2 id="动态规划"><a href="#动态规划" class="headerlink" title="动态规划"></a>动态规划</h2><p>动态规划问题的一般形式就是求最值。动态规划其实是运筹学的一种最优化方法，只不过在计算机问题上应用比较多，比如说让你求最长递增子序列呀，最小编辑距离呀等等。</p>
-<p>既然是要求最值，核心问题是什么呢？求解动态规划的核心问题是穷举。因为要求最值，肯定要把所有可行的答案穷举出来，然后在其中找最值呗。</p>
-<p>动态规划这么简单，就是穷举就完事了？我看到的动态规划问题都很难啊！</p>
-<p>首先，虽然动态规划的核心思想就是穷举求最值，但是问题可以千变万化，穷举所有可行解其实并不是一件容易的事，需要你熟练掌握递归思维，只有列出正确的「状态转移方程」，才能正确地穷举。</p>
-<p>而且，你需要判断算法问题是否具备「最优子结构」，是否能够通过子问题的最值得到原问题的最值。</p>
-<p>另外，动态规划问题存在「重叠子问题」，如果暴力穷举的话效率会很低，所以需要你使用「备忘录」或者「DP table」来优化穷举过程，避免不必要的计算。</p>
-<h2 id="dfs"><a href="#dfs" class="headerlink" title="dfs"></a>dfs</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">vector&lt;vector&lt;<span class="type">int</span>&gt;&gt; dirs = &#123;&#123;<span class="number">-1</span>, <span class="number">0</span>&#125;, &#123;<span class="number">1</span>, <span class="number">0</span>&#125;, &#123;<span class="number">0</span>, <span class="number">-1</span>&#125;, &#123;<span class="number">0</span>, <span class="number">1</span>&#125;&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">dfs</span><span class="params">(vector&lt;vector&lt;<span class="type">int</span>&gt;&gt;&amp; grid, <span class="type">int</span> i, <span class="type">int</span> j, vector&lt;vector&lt;<span class="type">bool</span>&gt;&gt;&amp; visited)</span> </span>&#123;</span><br><span class="line">    <span class="type">int</span> m = grid.<span class="built_in">size</span>(), n = grid[<span class="number">0</span>].<span class="built_in">size</span>();</span><br><span class="line">    <span class="keyword">if</span> (i &lt; <span class="number">0</span> || j &lt; <span class="number">0</span> || i &gt;= m || j &gt;= n) &#123;</span><br><span class="line">        <span class="comment">// 超出索引边界</span></span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (visited[i][j]) &#123;</span><br><span class="line">        <span class="comment">// 已遍历过 (i, j)</span></span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 进入节点 (i, j)</span></span><br><span class="line">    visited[i][j] = <span class="literal">true</span>;</span><br><span class="line">    <span class="comment">// 递归遍历上下左右的节点</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">auto</span> &amp;d : dirs) &#123;</span><br><span class="line">        <span class="type">int</span> next_i = i + d[<span class="number">0</span>];</span><br><span class="line">        <span class="type">int</span> next_j = j + d[<span class="number">1</span>];</span><br><span class="line">        <span class="built_in">dfs</span>(grid, next_i, next_j, visited);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 离开节点 (i, j)</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="bfs"><a href="#bfs" class="headerlink" title="bfs"></a>bfs</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 从 s 开始 BFS 遍历图的所有节点，且记录遍历的步数</span></span><br><span class="line"><span class="comment">// 当走到目标节点 target 时，返回步数</span></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">bfs</span><span class="params">(<span class="type">const</span> Graph&amp; graph, <span class="type">int</span> s, <span class="type">int</span> target)</span> </span>&#123;</span><br><span class="line">    <span class="function">vector&lt;<span class="type">bool</span>&gt; <span class="title">visited</span><span class="params">(graph.size(), <span class="literal">false</span>)</span></span>;</span><br><span class="line">    queue&lt;<span class="type">int</span>&gt; q;</span><br><span class="line">    q.<span class="built_in">push</span>(s);</span><br><span class="line">    visited[s] = <span class="literal">true</span>;</span><br><span class="line">    <span class="comment">// 记录从 s 开始走到当前节点的步数</span></span><br><span class="line">    <span class="type">int</span> step = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">while</span> (!q.<span class="built_in">empty</span>()) &#123;</span><br><span class="line">        <span class="type">int</span> sz = q.<span class="built_in">size</span>();</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; sz; i++) &#123;</span><br><span class="line">            <span class="type">int</span> cur = q.<span class="built_in">front</span>();</span><br><span class="line">            q.<span class="built_in">pop</span>();</span><br><span class="line">            cout &lt;&lt; <span class="string">&quot;visit &quot;</span> &lt;&lt; cur &lt;&lt; <span class="string">&quot; at step &quot;</span> &lt;&lt; step &lt;&lt; endl;</span><br><span class="line">            <span class="comment">// 判断是否到达终点</span></span><br><span class="line">            <span class="keyword">if</span> (cur == target) &#123;</span><br><span class="line">                <span class="keyword">return</span> step;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="comment">// 将邻居节点加入队列，向四周扩散搜索</span></span><br><span class="line">            <span class="keyword">for</span> (<span class="type">int</span> to : <span class="built_in">neighborsOf</span>(cur)) &#123;</span><br><span class="line">                <span class="keyword">if</span> (!visited[to]) &#123;</span><br><span class="line">                    q.<span class="built_in">push</span>(to);</span><br><span class="line">                    visited[to] = <span class="literal">true</span>;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        step++;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 如果走到这里，说明在图中没有找到目标节点</span></span><br><span class="line">    <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+          <h2 id="为什么对齐？"><a href="#为什么对齐？" class="headerlink" title="为什么对齐？"></a>为什么对齐？</h2><ul>
+<li>不对齐访问会变慢（某些架构会报错）</li>
+<li>提高总线效率（一次取数据满足更多字节）</li>
+</ul>
+<h2 id="对齐（pack）规则"><a href="#对齐（pack）规则" class="headerlink" title="对齐（pack）规则"></a>对齐（pack）规则</h2><ul>
+<li>成员偏移必须是其对齐值的整数倍；否则编译器插入 Padding</li>
+<li>结构体总大小必须是其“最大成员对齐值”的整数倍；否则末尾插入 Tail Padding</li>
+<li>位域（bit-field）按“底层类型”对齐，不能跨越底层单元边界</li>
+</ul>
 
       
     </div>
@@ -277,7 +269,7 @@
 
 
   <nav class="pagination">
-    <a class="extend prev" rel="prev" title="Previous page" aria-label="Previous page" href="/page/5/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/5/">5</a><span class="page-number current">6</span><a class="page-number" href="/page/7/">7</a><span class="space">&hellip;</span><a class="page-number" href="/page/19/">19</a><a class="extend next" rel="next" title="Next page" aria-label="Next page" href="/page/7/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" title="Previous page" aria-label="Previous page" href="/page/5/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/5/">5</a><span class="page-number current">6</span><a class="page-number" href="/page/7/">7</a><span class="space">&hellip;</span><a class="page-number" href="/page/20/">20</a><a class="extend next" rel="next" title="Next page" aria-label="Next page" href="/page/7/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 </div>

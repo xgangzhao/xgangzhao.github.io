@@ -166,7 +166,7 @@
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
         <a href="/archives/">
-          <span class="site-state-item-count">19</span>
+          <span class="site-state-item-count">20</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -198,7 +198,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/12/15/Linux%E5%9D%97%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8/">
+    <link itemprop="mainEntityOfPage" href="https://xgangzhao.github.io/2025/12/15/Linux%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -216,7 +216,7 @@
     </span>
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
-          <a href="/2025/12/15/Linux%E5%9D%97%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8/" class="post-title-link" itemprop="url">Linux块设备驱动</a>
+          <a href="/2025/12/15/Linux%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8/" class="post-title-link" itemprop="url">Linux网络设备驱动</a>
         </h2>
 
         <div class="post-meta-container">
@@ -228,7 +228,7 @@
       <span class="post-meta-item-text">Posted on</span>
       
 
-      <time title="Created: 2025-12-15 13:24:11 / Modified: 13:43:23" itemprop="dateCreated datePublished" datetime="2025-12-15T13:24:11+08:00">2025-12-15</time>
+      <time title="Created: 2025-12-15 13:53:29 / Modified: 13:57:32" itemprop="dateCreated datePublished" datetime="2025-12-15T13:53:29+08:00">2025-12-15</time>
     </span>
 
   
@@ -242,219 +242,124 @@
     
     <div class="post-body" itemprop="articleBody">
           <blockquote>
-<p>最近在啃 Linux 块设备驱动，说实话，一开始比字符设备要懵不少。字符设备是“read&#x2F;write → 我来拷数据”，而块设备背后是一整套 I&#x2F;O 调度、请求队列、bio、request 的体系。</p>
+<p>写网络驱动这件事，一开始真的挺“玄学”的：<br><code>net_device</code>、<code>sk_buff</code>、<code>ndo_xxx</code>、NAPI、netif_rx ……名字都认识，但一连起来就迷糊。</p>
 </blockquote>
+<p>后来发现：<strong>网络驱动比字符 &#x2F; 块设备更“子系统化”</strong>，如果不先理解整体分层，直接啃代码会非常痛苦。</p>
+<p>这篇我就按 <strong>“先框架 → 再步骤 → 最后 API”</strong> 的顺序记录一下我的理解。</p>
 <hr>
-<h2 id="整体思路"><a href="#整体思路" class="headerlink" title="整体思路"></a>整体思路</h2><p><strong>块设备驱动 ≠ 自己实现 read&#x2F;write</strong></p>
-<p>块设备驱动的核心是：</p>
-<blockquote>
-<p><strong>把上层文件系统的块 I&#x2F;O 请求，翻译成对底层存储介质的读写操作</strong></p>
-</blockquote>
-<p>文件系统、页缓存、I&#x2F;O 合并、调度，这些内核都帮你做好了，你只需要：</p>
-<ul>
-<li>接住请求</li>
-<li>处理请求</li>
-<li>告诉内核：我搞定了（或失败了）</li>
+<h2 id="Linux-网络设备驱动的整体分层框架"><a href="#Linux-网络设备驱动的整体分层框架" class="headerlink" title="Linux 网络设备驱动的整体分层框架"></a>Linux 网络设备驱动的整体分层框架</h2><p>从上到下看，Linux 网络子系统大致可以分为 5 层：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">+-------------------------------+</span><br><span class="line">|        用户空间 (User)          |</span><br><span class="line">|  socket / send / recv         |</span><br><span class="line">+-------------------------------+</span><br><span class="line">|      协议栈 (TCP/IP)           |</span><br><span class="line">|  tcp/ip / udp / icmp          |</span><br><span class="line">+-------------------------------+</span><br><span class="line">|   网络核心层 (net core)         |</span><br><span class="line">|  net_device / sk_buff         |</span><br><span class="line">+-------------------------------+</span><br><span class="line">|  网络设备驱动层 (driver)         |</span><br><span class="line">|  ndo_open / ndo_start_xmit    |</span><br><span class="line">+-------------------------------+</span><br><span class="line">|      硬件层 (MAC / PHY)        |</span><br><span class="line">|  DMA / 中断 / 寄存器            |</span><br><span class="line">+-------------------------------+</span><br></pre></td></tr></table></figure>
+
+<h3 id="1️⃣-用户空间"><a href="#1️⃣-用户空间" class="headerlink" title="1️⃣ 用户空间"></a>1️⃣ 用户空间</h3><ul>
+<li>socket、bind、connect、send、recv</li>
+<li>完全感知不到“驱动”存在</li>
 </ul>
-<hr>
-<h2 id="开始之前-先搞清楚Linux-块设备的整体分层框架"><a href="#开始之前-先搞清楚Linux-块设备的整体分层框架" class="headerlink" title="开始之前 先搞清楚Linux 块设备的整体分层框架"></a>开始之前 先搞清楚Linux 块设备的整体分层框架</h2><p>在真正写块设备驱动之前，我吃过一个很大的亏：<br><strong>直接看代码，看 <code>bio</code>、<code>request</code>、<code>make_request_fn</code>，越看越乱。</strong></p>
-<p>后来才意识到一个问题：</p>
-<blockquote>
-<p><strong>块设备驱动不是“一个层”，而是“整个 I&#x2F;O 栈的最底层一环”。</strong></p>
-</blockquote>
-<p>所以我现在习惯，<strong>先在脑子里画一张分层图</strong>。</p>
-<h3 id="块设备-I-O-的整体分层（自顶向下）"><a href="#块设备-I-O-的整体分层（自顶向下）" class="headerlink" title="块设备 I&#x2F;O 的整体分层（自顶向下）"></a>块设备 I&#x2F;O 的整体分层（自顶向下）</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">┌────────────────────────────┐</span><br><span class="line">│        用户空间              │</span><br><span class="line">│  cp / dd / mount / fsck    │</span><br><span class="line">└────────────┬───────────────┘</span><br><span class="line">             │ read/write</span><br><span class="line">┌────────────▼───────────────┐</span><br><span class="line">│        VFS 层               │</span><br><span class="line">│  struct file / inode       │</span><br><span class="line">└────────────┬───────────────┘</span><br><span class="line">             │</span><br><span class="line">┌────────────▼───────────────┐</span><br><span class="line">│        文件系统层            │</span><br><span class="line">│  ext4 / xfs / f2fs         │</span><br><span class="line">└────────────┬───────────────┘</span><br><span class="line">             │ page cache</span><br><span class="line">┌────────────▼───────────────┐</span><br><span class="line">│        通用块层              │</span><br><span class="line">│  bio / request / elevator  │</span><br><span class="line">│  I/O 合并、调度、重排         │</span><br><span class="line">└────────────┬───────────────┘</span><br><span class="line">             │</span><br><span class="line">┌────────────▼───────────────┐</span><br><span class="line">│     块设备驱动（我写的）       │</span><br><span class="line">│  make_request / queue_rq   │</span><br><span class="line">└────────────┬───────────────┘</span><br><span class="line">             │</span><br><span class="line">┌────────────▼───────────────┐</span><br><span class="line">│      硬件 / 存储介质        │</span><br><span class="line">│  eMMC / SSD / NVMe / RAM   │</span><br><span class="line">└────────────────────────────┘</span><br></pre></td></tr></table></figure>
-
-<p><strong>块设备驱动，只负责最下面这一层</strong></p>
-<h3 id="为什么块设备驱动没有-read-write？"><a href="#为什么块设备驱动没有-read-write？" class="headerlink" title="为什么块设备驱动没有 read&#x2F;write？"></a>为什么块设备驱动没有 read&#x2F;write？</h3><p>这是我最早困惑的问题之一。</p>
-<p>字符设备是这样的：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">用户 read()</span><br><span class="line">  → 驱动 read()</span><br></pre></td></tr></table></figure>
-
-<p>但块设备是：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">用户 read()</span><br><span class="line">  → VFS</span><br><span class="line">    → 文件系统</span><br><span class="line">      → page cache</span><br><span class="line">        → bio</span><br><span class="line">          → 块设备驱动</span><br></pre></td></tr></table></figure>
-
-<p>所以：</p>
-<blockquote>
-<p><strong>块设备驱动看到的已经不是“文件读写”，而是“块 I&#x2F;O 请求”</strong></p>
-</blockquote>
-<p>这也是为什么：</p>
-<ul>
-<li><code>struct block_device_operations</code> 里没有 <code>.read / .write</code></li>
-<li>真正的数据路径在 <code>bio</code> &#x2F; <code>request</code></li>
+<h3 id="2️⃣-协议栈"><a href="#2️⃣-协议栈" class="headerlink" title="2️⃣ 协议栈"></a>2️⃣ 协议栈</h3><ul>
+<li>TCP &#x2F; UDP &#x2F; IP &#x2F; ARP</li>
+<li>这里处理的是 <strong>“数据语义”</strong></li>
+<li>通过 <code>struct sk_buff</code> 与下层交互</li>
 </ul>
-<h3 id="通用块层：内核帮我做了什么？"><a href="#通用块层：内核帮我做了什么？" class="headerlink" title="通用块层：内核帮我做了什么？"></a>通用块层：内核帮我做了什么？</h3><p>在我真正处理 I&#x2F;O 之前，<strong>通用块层已经干了大量工作</strong>。</p>
-<p>它主要负责：</p>
+<h3 id="3️⃣-网络核心层（net-core）"><a href="#3️⃣-网络核心层（net-core）" class="headerlink" title="3️⃣ 网络核心层（net core）"></a>3️⃣ 网络核心层（net core）</h3><p>这是<strong>驱动最重要的对接层</strong>：</p>
 <ul>
-<li>把文件 I&#x2F;O 转换成块 I&#x2F;O</li>
-<li>页缓存（page cache）</li>
-<li>bio 合并（I&#x2F;O 聚合）</li>
-<li>I&#x2F;O 调度（deadline &#x2F; bfq &#x2F; none）</li>
-<li>顺序优化、重排</li>
+<li>维护 <code>struct net_device</code></li>
+<li>维护网络设备状态</li>
+<li>调用驱动提供的 <code>ndo_xxx</code> 回调</li>
 </ul>
-<p>我写的驱动 <strong>完全不用关心这些</strong>。</p>
-<h4 id="1️⃣-bio：块-I-O-的最小描述单元"><a href="#1️⃣-bio：块-I-O-的最小描述单元" class="headerlink" title="1️⃣ bio：块 I&#x2F;O 的最小描述单元"></a>1️⃣ bio：块 I&#x2F;O 的最小描述单元</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">bio</span> &#123;</span></span><br><span class="line">    <span class="type">sector_t</span>        bi_sector;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">bio_vec</span> *<span class="title">bi_io_vec</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">bvec_iter</span> <span class="title">bi_iter</span>;</span></span><br><span class="line">    ...</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-
-<p>我现在的理解是：</p>
-<blockquote>
-<p><strong>bio &#x3D; “从某个逻辑扇区开始，对一段数据做读&#x2F;写”</strong></p>
-</blockquote>
-<p>特点：</p>
+<p><strong>网络驱动本质上就是：实现 net_device 的一组回调函数</strong></p>
+<h3 id="4️⃣-网络设备驱动层"><a href="#4️⃣-网络设备驱动层" class="headerlink" title="4️⃣ 网络设备驱动层"></a>4️⃣ 网络设备驱动层</h3><p>驱动真正干活的地方：</p>
 <ul>
-<li>可能跨多个 page</li>
-<li>内存不一定连续</li>
-<li>但逻辑地址（sector）是连续的</li>
+<li>发包：把 skb 转成 DMA 数据</li>
+<li>收包：把 DMA 数据封装成 skb</li>
+<li>管理中断、队列、NAPI</li>
+</ul>
+<h3 id="5️⃣-硬件层"><a href="#5️⃣-硬件层" class="headerlink" title="5️⃣ 硬件层"></a>5️⃣ 硬件层</h3><ul>
+<li>MAC（控制以太网帧）</li>
+<li>PHY（物理层，MII &#x2F; RMII &#x2F; RGMII）</li>
+<li>DMA &#x2F; IRQ &#x2F; 寄存器</li>
 </ul>
 <hr>
-<h4 id="2️⃣-request：多个-bio-的集合"><a href="#2️⃣-request：多个-bio-的集合" class="headerlink" title="2️⃣ request：多个 bio 的集合"></a>2️⃣ request：多个 bio 的集合</h4><p>在 <code>blk-mq</code> 之前：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">多个 bio</span><br><span class="line">   ↓</span><br><span class="line">合并成 request</span><br><span class="line">   ↓</span><br><span class="line">送给驱动</span><br></pre></td></tr></table></figure>
+<h2 id="网络设备驱动的核心数据结构"><a href="#网络设备驱动的核心数据结构" class="headerlink" title="网络设备驱动的核心数据结构"></a>网络设备驱动的核心数据结构</h2><h3 id="1️⃣-struct-net-device-——-网络设备的“身份证”"><a href="#1️⃣-struct-net-device-——-网络设备的“身份证”" class="headerlink" title="1️⃣ struct net_device —— 网络设备的“身份证”"></a>1️⃣ struct net_device —— 网络设备的“身份证”</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">net_device</span> &#123;</span></span><br><span class="line">    <span class="type">char</span> name[IFNAMSIZ];</span><br><span class="line">    <span class="type">unsigned</span> <span class="type">long</span> state;</span><br><span class="line">    <span class="type">const</span> <span class="class"><span class="keyword">struct</span> <span class="title">net_device_ops</span> *<span class="title">netdev_ops</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">ethtool_ops</span> *<span class="title">ethtool_ops</span>;</span></span><br><span class="line">    ...</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
 
-<p>在 <code>blk-mq</code> 之后：</p>
 <ul>
-<li>request 仍然存在</li>
-<li>但调度和分发更并行</li>
+<li><strong>每一个网卡 &#x3D; 一个 net_device</strong></li>
+<li><code>ifconfig</code> &#x2F; <code>ip link</code> 操作的就是它</li>
 </ul>
-<h3 id="块设备驱动在分层中的位置"><a href="#块设备驱动在分层中的位置" class="headerlink" title="块设备驱动在分层中的位置"></a>块设备驱动在分层中的位置</h3><p>现在再回头看块设备驱动，其实非常清晰：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">通用块层</span><br><span class="line">   │</span><br><span class="line">   │  bio / request</span><br><span class="line">   ▼</span><br><span class="line">块设备驱动</span><br><span class="line">   │</span><br><span class="line">   │  sector → 物理地址</span><br><span class="line">   ▼</span><br><span class="line">硬件操作</span><br></pre></td></tr></table></figure>
+<h3 id="2️⃣-struct-net-device-ops-——-驱动必须实现的回调"><a href="#2️⃣-struct-net-device-ops-——-驱动必须实现的回调" class="headerlink" title="2️⃣ struct net_device_ops —— 驱动必须实现的回调"></a>2️⃣ struct net_device_ops —— 驱动必须实现的回调</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">net_device_ops</span> &#123;</span></span><br><span class="line">    <span class="type">int</span>  (*ndo_open)(<span class="keyword">struct</span> net_device *dev);</span><br><span class="line">    <span class="type">int</span>  (*ndo_stop)(<span class="keyword">struct</span> net_device *dev);</span><br><span class="line">    <span class="type">netdev_tx_t</span> (*ndo_start_xmit)(<span class="keyword">struct</span> sk_buff *skb,</span><br><span class="line">                                 <span class="keyword">struct</span> net_device *dev);</span><br><span class="line">    ...</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
 
-<p>我在驱动里要做的事，本质只有三步：</p>
+<p>这是网络驱动的<strong>灵魂</strong>。</p>
+<hr>
+<h2 id="Linux-网络设备驱动的主要编写步骤"><a href="#Linux-网络设备驱动的主要编写步骤" class="headerlink" title="Linux 网络设备驱动的主要编写步骤"></a>Linux 网络设备驱动的主要编写步骤</h2><p>下面是我自己总结的一个“驱动骨架流程”。</p>
+<hr>
+<h3 id="第一步：分配并初始化-net-device"><a href="#第一步：分配并初始化-net-device" class="headerlink" title="第一步：分配并初始化 net_device"></a>第一步：分配并初始化 net_device</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">net_device</span> *<span class="title">ndev</span>;</span></span><br><span class="line"></span><br><span class="line">ndev = alloc_etherdev(<span class="keyword">sizeof</span>(<span class="keyword">struct</span> priv_data));</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p><code>alloc_etherdev()</code> 会：</p>
+<ul>
+<li>分配 <code>net_device</code></li>
+<li>初始化以太网相关字段</li>
+<li>预留私有数据区</li>
+</ul>
+</li>
+</ul>
+<p>获取私有数据：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">priv_data</span> *<span class="title">priv</span> =</span> netdev_priv(ndev);</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="第二步：设置-net-device-的关键字段"><a href="#第二步：设置-net-device-的关键字段" class="headerlink" title="第二步：设置 net_device 的关键字段"></a>第二步：设置 net_device 的关键字段</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">ndev-&gt;netdev_ops = &amp;my_netdev_ops;</span><br><span class="line">ndev-&gt;ethtool_ops = &amp;my_ethtool_ops;</span><br><span class="line">ndev-&gt;irq = irq_num;</span><br></pre></td></tr></table></figure>
+
+<p>常见还会设置：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ndev-&gt;watchdog_timeo = msecs_to_jiffies(<span class="number">5000</span>);</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="第三步：注册网络设备"><a href="#第三步：注册网络设备" class="headerlink" title="第三步：注册网络设备"></a>第三步：注册网络设备</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">register_netdev(ndev);</span><br></pre></td></tr></table></figure>
+
+<p>或者：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">register_netdevice(ndev);</span><br></pre></td></tr></table></figure>
+
+<p>注册成功后：</p>
+<ul>
+<li><code>/sys/class/net/ethX</code> 出现</li>
+<li><code>ifconfig -a</code> 能看到设备</li>
+</ul>
+<p><strong>从这里开始，协议栈就“认识”这张网卡了</strong></p>
+<hr>
+<h3 id="第四步：实现-ndo-open-ndo-stop"><a href="#第四步：实现-ndo-open-ndo-stop" class="headerlink" title="第四步：实现 ndo_open &#x2F; ndo_stop"></a>第四步：实现 ndo_open &#x2F; ndo_stop</h3><h4 id="ndo-open（ifconfig-ethX-up）"><a href="#ndo-open（ifconfig-ethX-up）" class="headerlink" title="ndo_open（ifconfig ethX up）"></a>ndo_open（ifconfig ethX up）</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">int</span> <span class="title function_">my_open</span><span class="params">(<span class="keyword">struct</span> net_device *ndev)</span></span><br><span class="line">&#123;</span><br><span class="line">    request_irq(ndev-&gt;irq, my_irq_handler, <span class="number">0</span>,</span><br><span class="line">                ndev-&gt;name, ndev);</span><br><span class="line"></span><br><span class="line">    netif_start_queue(ndev);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>主要做三件事：</p>
 <ol>
-<li><p><strong>解析 I&#x2F;O 请求</strong></p>
-<ul>
-<li>起始 sector</li>
-<li>数据长度</li>
-<li>读 or 写</li>
-</ul>
-</li>
-<li><p><strong>完成数据传输</strong></p>
-<ul>
-<li>memcpy（内存盘）</li>
-<li>DMA（真实设备）</li>
-</ul>
-</li>
-<li><p><strong>通知内核完成</strong></p>
-<ul>
-<li><code>bio_endio()</code> 或 <code>blk_mq_end_request()</code></li>
-</ul>
-</li>
+<li>申请中断</li>
+<li>初始化 DMA &#x2F; 硬件</li>
+<li>启动发送队列</li>
 </ol>
 <hr>
-<h3 id="两种常见的块设备驱动模型"><a href="#两种常见的块设备驱动模型" class="headerlink" title="两种常见的块设备驱动模型"></a>两种常见的块设备驱动模型</h3><h4 id="1️⃣-make-request-模型（简单、好理解）"><a href="#1️⃣-make-request-模型（简单、好理解）" class="headerlink" title="1️⃣ make_request 模型（简单、好理解）"></a>1️⃣ make_request 模型（简单、好理解）</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">bio</span><br><span class="line"> ↓</span><br><span class="line">make_request_fn</span><br><span class="line"> ↓</span><br><span class="line">设备读写</span><br><span class="line"> ↓</span><br><span class="line">bio_endio</span><br></pre></td></tr></table></figure>
+<h4 id="ndo-stop（ifconfig-ethX-down）"><a href="#ndo-stop（ifconfig-ethX-down）" class="headerlink" title="ndo_stop（ifconfig ethX down）"></a>ndo_stop（ifconfig ethX down）</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">int</span> <span class="title function_">my_stop</span><span class="params">(<span class="keyword">struct</span> net_device *ndev)</span></span><br><span class="line">&#123;</span><br><span class="line">    netif_stop_queue(ndev);</span><br><span class="line">    free_irq(ndev-&gt;irq, ndev);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p>特点：</p>
+<hr>
+<h3 id="第五步：实现发包函数-ndo-start-xmit"><a href="#第五步：实现发包函数-ndo-start-xmit" class="headerlink" title="第五步：实现发包函数 ndo_start_xmit"></a>第五步：实现发包函数 ndo_start_xmit</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">netdev_tx_t</span></span><br><span class="line"><span class="title function_">my_start_xmit</span><span class="params">(<span class="keyword">struct</span> sk_buff *skb, <span class="keyword">struct</span> net_device *ndev)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="comment">// 1. 映射 DMA</span></span><br><span class="line">    <span class="comment">// 2. 把 skb-&gt;data 交给硬件</span></span><br><span class="line">    <span class="comment">// 3. 通知 MAC 发送</span></span><br><span class="line"></span><br><span class="line">    dev_kfree_skb(skb);</span><br><span class="line">    <span class="keyword">return</span> NETDEV_TX_OK;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>关键理解点：</p>
 <ul>
-<li><p>驱动直接处理 bio</p>
-</li>
-<li><p>不关心 request</p>
-</li>
-<li><p>非常适合：</p>
-<ul>
-<li>内存块设备</li>
-<li>loop 设备</li>
-<li>学习用途</li>
-</ul>
-</li>
+<li><strong>协议栈已经把数据准备好了</strong></li>
+<li>驱动只负责“怎么送到网卡”</li>
 </ul>
 <hr>
-<h4 id="2️⃣-blk-mq-模型（现代、高性能）"><a href="#2️⃣-blk-mq-模型（现代、高性能）" class="headerlink" title="2️⃣ blk-mq 模型（现代、高性能）"></a>2️⃣ blk-mq 模型（现代、高性能）</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">bio</span><br><span class="line"> ↓</span><br><span class="line">request</span><br><span class="line"> ↓</span><br><span class="line">blk_mq_ops.queue_rq</span><br><span class="line"> ↓</span><br><span class="line">设备提交</span><br><span class="line"> ↓</span><br><span class="line">blk_mq_end_request</span><br></pre></td></tr></table></figure>
+<h3 id="第六步：收包（中断-NAPI）"><a href="#第六步：收包（中断-NAPI）" class="headerlink" title="第六步：收包（中断 &#x2F; NAPI）"></a>第六步：收包（中断 &#x2F; NAPI）</h3><p>典型流程：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">硬件收到数据</span><br><span class="line">   ↓</span><br><span class="line">触发中断</span><br><span class="line">   ↓</span><br><span class="line">驱动从 DMA 取数据</span><br><span class="line">   ↓</span><br><span class="line">构造 sk_buff</span><br><span class="line">   ↓</span><br><span class="line">netif_rx() / napi_gro_receive()</span><br></pre></td></tr></table></figure>
 
-<p>特点：</p>
-<ul>
-<li>多队列</li>
-<li>多 CPU 并行</li>
-<li>几乎所有新存储设备都用它</li>
-</ul>
-<hr>
-<h3 id="从“分层”角度再看-gendisk-queue"><a href="#从“分层”角度再看-gendisk-queue" class="headerlink" title="从“分层”角度再看 gendisk &#x2F; queue"></a>从“分层”角度再看 gendisk &#x2F; queue</h3><p>现在我再看这几个结构，就非常顺了：</p>
-<h4 id="gendisk-——-“设备对外的门面”"><a href="#gendisk-——-“设备对外的门面”" class="headerlink" title="gendisk —— “设备对外的门面”"></a>gendisk —— “设备对外的门面”</h4><ul>
-<li>设备名</li>
-<li>容量</li>
-<li>主次设备号</li>
-<li>和文件系统打交道</li>
-</ul>
-<h4 id="request-queue-——-“I-O-入口”"><a href="#request-queue-——-“I-O-入口”" class="headerlink" title="request_queue —— “I&#x2F;O 入口”"></a>request_queue —— “I&#x2F;O 入口”</h4><ul>
-<li>通用块层 → 驱动的接口</li>
-<li>I&#x2F;O 在这里排队、下发</li>
-</ul>
-<hr>
-<blockquote>
-<p><strong>块设备驱动不是给“人”用的，而是给“文件系统和块层”用的。</strong></p>
-</blockquote>
-<p>所以：</p>
-<ul>
-<li>不要站在 <code>cp / dd</code> 的角度想</li>
-<li>要站在 <strong>bio &#x2F; sector &#x2F; page</strong> 的角度想</li>
-</ul>
-<hr>
-<h2 id="理解完框架后，再来看块设备驱动的整体流程"><a href="#理解完框架后，再来看块设备驱动的整体流程" class="headerlink" title="理解完框架后，再来看块设备驱动的整体流程"></a>理解完框架后，再来看块设备驱动的整体流程</h2><p>我一般把编写流程拆成下面几步 </p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">模块加载</span><br><span class="line">  ↓</span><br><span class="line">申请主设备号</span><br><span class="line">  ↓</span><br><span class="line">分配 gendisk</span><br><span class="line">  ↓</span><br><span class="line">初始化 request_queue</span><br><span class="line">  ↓</span><br><span class="line">绑定 disk 与 queue</span><br><span class="line">  ↓</span><br><span class="line">add_disk()</span><br><span class="line">  ↓</span><br><span class="line">等待 I/O 请求</span><br></pre></td></tr></table></figure>
+<p>示例：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">skb = netdev_alloc_skb(ndev, len);</span><br><span class="line"><span class="built_in">memcpy</span>(skb_put(skb, len), data, len);</span><br><span class="line"></span><br><span class="line">skb-&gt;protocol = eth_type_trans(skb, ndev);</span><br><span class="line">netif_rx(skb);</span><br></pre></td></tr></table></figure>
 
 <hr>
-<h2 id="模块初始化：申请主设备号"><a href="#模块初始化：申请主设备号" class="headerlink" title="模块初始化：申请主设备号"></a>模块初始化：申请主设备号</h2><h3 id="1️⃣-register-blkdev"><a href="#1️⃣-register-blkdev" class="headerlink" title="1️⃣ register_blkdev()"></a>1️⃣ register_blkdev()</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> major;</span><br><span class="line"></span><br><span class="line">major = register_blkdev(<span class="number">0</span>, <span class="string">&quot;my_blkdev&quot;</span>);</span><br><span class="line"><span class="keyword">if</span> (major &lt; <span class="number">0</span>) &#123;</span><br><span class="line">    pr_err(<span class="string">&quot;register_blkdev failed\n&quot;</span>);</span><br><span class="line">    <span class="keyword">return</span> major;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="第七步：NAPI（高性能必备）"><a href="#第七步：NAPI（高性能必备）" class="headerlink" title="第七步：NAPI（高性能必备）"></a>第七步：NAPI（高性能必备）</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">netif_napi_add(ndev, &amp;priv-&gt;napi, my_poll, <span class="number">64</span>);</span><br><span class="line">napi_enable(&amp;priv-&gt;napi);</span><br></pre></td></tr></table></figure>
 
-<ul>
-<li><code>0</code>：让内核动态分配主设备号</li>
-<li><code>&quot;my_blkdev&quot;</code>：在 <code>/proc/devices</code> 里看到的名字</li>
-</ul>
-<blockquote>
-<p>📌 <strong>块设备一定要有主设备号，没有就没法创建设备节点</strong></p>
-</blockquote>
-<hr>
-<h2 id="分配并初始化-gendisk（核心对象）"><a href="#分配并初始化-gendisk（核心对象）" class="headerlink" title="分配并初始化 gendisk（核心对象）"></a>分配并初始化 gendisk（核心对象）</h2><h3 id="2️⃣-alloc-disk"><a href="#2️⃣-alloc-disk" class="headerlink" title="2️⃣ alloc_disk()"></a>2️⃣ alloc_disk()</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">gendisk</span> *<span class="title">gd</span>;</span></span><br><span class="line"></span><br><span class="line">gd = alloc_disk(<span class="number">1</span>);   <span class="comment">// 次设备号数量</span></span><br></pre></td></tr></table></figure>
-
-<p><code>gendisk</code> 是块设备在内核中的“门面”，非常关键。</p>
-<h3 id="常用成员设置"><a href="#常用成员设置" class="headerlink" title="常用成员设置"></a>常用成员设置</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">gd-&gt;major = major;</span><br><span class="line">gd-&gt;first_minor = <span class="number">0</span>;</span><br><span class="line">gd-&gt;fops = &amp;my_blk_fops;</span><br><span class="line">gd-&gt;private_data = dev;</span><br><span class="line"><span class="built_in">snprintf</span>(gd-&gt;disk_name, <span class="number">32</span>, <span class="string">&quot;myblk&quot;</span>);</span><br></pre></td></tr></table></figure>
+<p>在 <code>poll()</code> 中批量收包：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">int</span> <span class="title function_">my_poll</span><span class="params">(<span class="keyword">struct</span> napi_struct *napi, <span class="type">int</span> budget)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">int</span> work_done = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> (work_done &lt; budget) &#123;</span><br><span class="line">        <span class="comment">// 收包</span></span><br><span class="line">        work_done++;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (work_done &lt; budget)</span><br><span class="line">        napi_complete(napi);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> work_done;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <hr>
-<h2 id="block-device-operations（不像字符设备那么重要）"><a href="#block-device-operations（不像字符设备那么重要）" class="headerlink" title="block_device_operations（不像字符设备那么重要）"></a>block_device_operations（不像字符设备那么重要）</h2><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">const</span> <span class="class"><span class="keyword">struct</span> <span class="title">block_device_operations</span> <span class="title">my_blk_fops</span> =</span> &#123;</span><br><span class="line">    .owner = THIS_MODULE,</span><br><span class="line">    .open  = my_blk_open,</span><br><span class="line">    .release = my_blk_release,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<h3 id="第八步：卸载驱动"><a href="#第八步：卸载驱动" class="headerlink" title="第八步：卸载驱动"></a>第八步：卸载驱动</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">unregister_netdev(ndev);</span><br><span class="line">free_netdev(ndev);</span><br></pre></td></tr></table></figure>
 
-<p>注意：</p>
-<ul>
-<li><strong>块设备驱动并不关心 read&#x2F;write</strong></li>
-<li><code>open()</code> 只是打开整个设备（不是文件）</li>
-</ul>
 <hr>
-<h2 id="初始化请求队列（真正的灵魂）"><a href="#初始化请求队列（真正的灵魂）" class="headerlink" title="初始化请求队列（真正的灵魂）"></a>初始化请求队列（真正的灵魂）</h2><h3 id="3️⃣-blk-alloc-queue-blk-mq-init-queue"><a href="#3️⃣-blk-alloc-queue-blk-mq-init-queue" class="headerlink" title="3️⃣ blk_alloc_queue() &#x2F; blk_mq_init_queue()"></a>3️⃣ blk_alloc_queue() &#x2F; blk_mq_init_queue()</h3><p>老接口（简单）：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">request_queue</span> *<span class="title">queue</span>;</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">queue</span> = blk_alloc_queue(GFP_KERNEL);</span><br><span class="line">blk_queue_make_request(<span class="built_in">queue</span>, my_make_request);</span><br></pre></td></tr></table></figure>
-
-<p>现代推荐（blk-mq，多队列）：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">queue</span> = blk_mq_init_sq_queue(&amp;tag_set,</span><br><span class="line">                             my_queue_rq,</span><br><span class="line">                             <span class="number">128</span>,</span><br><span class="line">                             BLK_MQ_F_SHOULD_MERGE);</span><br></pre></td></tr></table></figure>
-
-<blockquote>
-<p>📌 学习阶段，<strong>建议先理解 <code>make_request_fn</code> 版本</strong></p>
-</blockquote>
-<hr>
-<h2 id="处理-I-O：make-request-fn"><a href="#处理-I-O：make-request-fn" class="headerlink" title="处理 I&#x2F;O：make_request_fn"></a>处理 I&#x2F;O：make_request_fn</h2><h3 id="4️⃣-make-request-fn"><a href="#4️⃣-make-request-fn" class="headerlink" title="4️⃣ make_request_fn"></a>4️⃣ make_request_fn</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">blk_qc_t</span> <span class="title function_">my_make_request</span><span class="params">(<span class="keyword">struct</span> request_queue *q, <span class="keyword">struct</span> bio *bio)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">bio_vec</span> <span class="title">bvec</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">bvec_iter</span> <span class="title">iter</span>;</span></span><br><span class="line">    <span class="type">sector_t</span> sector = bio-&gt;bi_iter.bi_sector;</span><br><span class="line"></span><br><span class="line">    bio_for_each_segment(bvec, bio, iter) &#123;</span><br><span class="line">        <span class="type">void</span> *buf = kmap_atomic(bvec.bv_page) + bvec.bv_offset;</span><br><span class="line">        <span class="type">unsigned</span> <span class="type">int</span> len = bvec.bv_len;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (bio_data_dir(bio) == READ) &#123;</span><br><span class="line">            <span class="comment">// 从设备读到 buf</span></span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// 从 buf 写到设备</span></span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        kunmap_atomic(buf);</span><br><span class="line">        sector += len &gt;&gt; <span class="number">9</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    bio_endio(bio);</span><br><span class="line">    <span class="keyword">return</span> BLK_QC_T_NONE;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>这里是<strong>块设备驱动最核心的地方</strong>：</p>
-<ul>
-<li><code>bio</code>：一次 I&#x2F;O 请求</li>
-<li><code>bio_vec</code>：bio 可能是 <strong>非连续内存</strong></li>
-<li><code>bi_sector</code>：逻辑扇区号（512B 为单位）</li>
-</ul>
-<hr>
-<h2 id="绑定-queue-和-gendisk"><a href="#绑定-queue-和-gendisk" class="headerlink" title="绑定 queue 和 gendisk"></a>绑定 queue 和 gendisk</h2><h3 id="5️⃣-连接起来"><a href="#5️⃣-连接起来" class="headerlink" title="5️⃣ 连接起来"></a>5️⃣ 连接起来</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">gd-&gt;<span class="built_in">queue</span> = <span class="built_in">queue</span>;</span><br><span class="line">set_capacity(gd, dev-&gt;size_in_sectors);</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><code>set_capacity()</code> 决定了 <code>fdisk -l</code> 看到的容量</li>
-</ul>
-<hr>
-<h2 id="注册块设备"><a href="#注册块设备" class="headerlink" title="注册块设备"></a>注册块设备</h2><h3 id="6️⃣-add-disk"><a href="#6️⃣-add-disk" class="headerlink" title="6️⃣ add_disk()"></a>6️⃣ add_disk()</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">add_disk(gd);</span><br></pre></td></tr></table></figure>
-
-<p>到这一步：</p>
-<ul>
-<li><code>/dev/myblk</code> 出现</li>
-<li>可以 <code>fdisk</code></li>
-<li>可以 <code>mkfs</code></li>
-<li>可以 <code>mount</code></li>
-</ul>
-<p>🎉 <strong>块设备正式上线</strong></p>
-<hr>
-<h2 id="模块卸载时的清理顺序"><a href="#模块卸载时的清理顺序" class="headerlink" title="模块卸载时的清理顺序"></a>模块卸载时的清理顺序</h2><p>我一般按这个顺序：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">del_gendisk(gd);</span><br><span class="line">put_disk(gd);</span><br><span class="line"></span><br><span class="line">blk_cleanup_queue(<span class="built_in">queue</span>);</span><br><span class="line"></span><br><span class="line">unregister_blkdev(major, <span class="string">&quot;my_blkdev&quot;</span>);</span><br></pre></td></tr></table></figure>
-
-<p><strong>顺序错了，很容易 oops</strong></p>
-<hr>
-<h2 id="块设备驱动常用-API-总结"><a href="#块设备驱动常用-API-总结" class="headerlink" title="块设备驱动常用 API 总结"></a>块设备驱动常用 API 总结</h2><h3 id="设备相关"><a href="#设备相关" class="headerlink" title="设备相关"></a>设备相关</h3><table>
+<h2 id="网络驱动中最常见的-API-总结"><a href="#网络驱动中最常见的-API-总结" class="headerlink" title="网络驱动中最常见的 API 总结"></a>网络驱动中最常见的 API 总结</h2><h3 id="1️⃣-net-device-相关"><a href="#1️⃣-net-device-相关" class="headerlink" title="1️⃣ net_device 相关"></a>1️⃣ net_device 相关</h3><table>
 <thead>
 <tr>
 <th>API</th>
@@ -462,24 +367,24 @@
 </tr>
 </thead>
 <tbody><tr>
-<td>register_blkdev</td>
-<td>注册主设备号</td>
+<td>alloc_etherdev</td>
+<td>分配以太网设备</td>
 </tr>
 <tr>
-<td>alloc_disk</td>
-<td>分配 gendisk</td>
+<td>register_netdev</td>
+<td>注册设备</td>
 </tr>
 <tr>
-<td>add_disk</td>
-<td>注册磁盘</td>
+<td>unregister_netdev</td>
+<td>注销设备</td>
 </tr>
 <tr>
-<td>del_gendisk</td>
-<td>删除磁盘</td>
+<td>netdev_priv</td>
+<td>获取私有数据</td>
 </tr>
 </tbody></table>
 <hr>
-<h3 id="请求队列"><a href="#请求队列" class="headerlink" title="请求队列"></a>请求队列</h3><table>
+<h3 id="2️⃣-skb-相关"><a href="#2️⃣-skb-相关" class="headerlink" title="2️⃣ skb 相关"></a>2️⃣ skb 相关</h3><table>
 <thead>
 <tr>
 <th>API</th>
@@ -487,20 +392,24 @@
 </tr>
 </thead>
 <tbody><tr>
-<td>blk_alloc_queue</td>
-<td>分配 request_queue</td>
+<td>dev_alloc_skb</td>
+<td>分配 skb</td>
 </tr>
 <tr>
-<td>blk_queue_make_request</td>
-<td>设置 make_request_fn</td>
+<td>skb_put</td>
+<td>增加数据长度</td>
 </tr>
 <tr>
-<td>bio_endio</td>
-<td>通知 I&#x2F;O 完成</td>
+<td>eth_type_trans</td>
+<td>设置协议类型</td>
+</tr>
+<tr>
+<td>dev_kfree_skb</td>
+<td>释放 skb</td>
 </tr>
 </tbody></table>
 <hr>
-<h3 id="bio-相关"><a href="#bio-相关" class="headerlink" title="bio 相关"></a>bio 相关</h3><table>
+<h3 id="3️⃣-发送-接收相关"><a href="#3️⃣-发送-接收相关" class="headerlink" title="3️⃣ 发送 &#x2F; 接收相关"></a>3️⃣ 发送 &#x2F; 接收相关</h3><table>
 <thead>
 <tr>
 <th>API</th>
@@ -508,40 +417,46 @@
 </tr>
 </thead>
 <tbody><tr>
-<td>bio_for_each_segment</td>
-<td>遍历 bio</td>
+<td>netif_start_queue</td>
+<td>启动发送队列</td>
 </tr>
 <tr>
-<td>bio_data_dir</td>
-<td>判断读&#x2F;写</td>
+<td>netif_stop_queue</td>
+<td>停止发送</td>
 </tr>
 <tr>
-<td>kmap_atomic</td>
-<td>映射页</td>
+<td>netif_rx</td>
+<td>提交 skb 给协议栈</td>
 </tr>
 <tr>
-<td>kunmap_atomic</td>
-<td>解除映射</td>
+<td>napi_gro_receive</td>
+<td>NAPI 接收</td>
 </tr>
 </tbody></table>
 <hr>
-<h2 id="我的一点体会"><a href="#我的一点体会" class="headerlink" title="我的一点体会"></a>我的一点体会</h2><ul>
-<li><p><strong>先写一个“内存块设备”</strong>（ramdisk 风格）</p>
-</li>
-<li><p>不要一上来就啃 blk-mq</p>
-</li>
-<li><p>真正理解：</p>
-<ul>
-<li><code>bio</code> 为什么不是连续内存</li>
-<li><code>sector</code> 和 <code>offset</code> 的关系</li>
+<h3 id="4️⃣-PHY-MDIO（进阶）"><a href="#4️⃣-PHY-MDIO（进阶）" class="headerlink" title="4️⃣ PHY &#x2F; MDIO（进阶）"></a>4️⃣ PHY &#x2F; MDIO（进阶）</h3><ul>
+<li><code>mdiobus_register</code></li>
+<li><code>phy_connect</code></li>
+<li><code>phy_start</code></li>
+<li><code>phy_stop</code></li>
 </ul>
-</li>
-<li><p>块设备驱动更像是：</p>
-<blockquote>
-<p><strong>“协议适配层”</strong>，而不是“数据搬运工”</p>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><blockquote>
+<p><strong>网络驱动的本质，不是“实现协议”，而是“连接协议栈与硬件”</strong></p>
 </blockquote>
+<ul>
+<li><p>协议栈关心的是 <code>sk_buff</code></p>
+</li>
+<li><p>net core 负责调度</p>
+</li>
+<li><p>驱动只关心：</p>
+<ul>
+<li>skb 怎么变成 DMA</li>
+<li>DMA 怎么变成 skb</li>
+</ul>
 </li>
 </ul>
+<p>只要抓住 <strong>net_device + ndo_xxx + sk_buff</strong> 这三条主线，网络驱动就不会乱。</p>
 
       
     </div>
@@ -561,7 +476,7 @@
 
 
   <nav class="pagination">
-    <a class="extend prev" rel="prev" title="Previous page" aria-label="Previous page" href="/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/19/">19</a><a class="extend next" rel="next" title="Next page" aria-label="Next page" href="/page/3/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" title="Previous page" aria-label="Previous page" href="/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/20/">20</a><a class="extend next" rel="next" title="Next page" aria-label="Next page" href="/page/3/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 </div>
